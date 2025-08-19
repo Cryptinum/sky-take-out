@@ -1,0 +1,9 @@
+**/target/
+.idea
+*.iml
+*.class
+*Test.java
+**/test/
+nginx-1.20.2/
+**/resources/*.yml
+**/resources/*.yaml
