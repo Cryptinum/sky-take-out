@@ -1,6 +1,7 @@
 package com.sky.controller.admin;
 
 import com.sky.constant.JwtClaimsConstant;
+import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
 import com.sky.entity.Employee;
 import com.sky.properties.JwtProperties;
@@ -8,6 +9,8 @@ import com.sky.result.Result;
 import com.sky.service.EmployeeService;
 import com.sky.utils.JwtUtil;
 import com.sky.vo.EmployeeLoginVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,10 +27,12 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/employee")
 @Slf4j
+@Tag(name = "用户上下线接口", description = "提供用户登录和登出的一系列功能")
 public class EmployeeController {
 
     @Autowired
     private EmployeeService employeeService;
+
     @Autowired
     private JwtProperties jwtProperties;
 
@@ -38,6 +43,7 @@ public class EmployeeController {
      * @return
      */
     @PostMapping("/login")
+    @Operation(summary = "员工登录", description = "提供员工登录功能")
     public Result<EmployeeLoginVO> login(@RequestBody EmployeeLoginDTO employeeLoginDTO) {
         log.info("员工登录：{}", employeeLoginDTO);
 
@@ -67,8 +73,19 @@ public class EmployeeController {
      * @return
      */
     @PostMapping("/logout")
+    @Operation(summary = "员工登出", description = "提供员工登出功能")
     public Result<String> logout() {
         return Result.success();
+    }
+
+
+    @PostMapping
+    @Operation(summary = "新增员工", description = "提供新增员工功能")
+    public Result<Integer> saveEmployee(@RequestBody EmployeeDTO employeeDTO) {
+        log.info("新增员工:{}", employeeDTO);
+        System.err.println(Thread.currentThread().getId() + " - EmployeeController saveEmployee");
+        Integer success = employeeService.saveEmployee(employeeDTO);
+        return Result.success(success);
     }
 
 }
