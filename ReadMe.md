@@ -2,7 +2,8 @@
 
 ## 前端环境
 
-在资源管理器中打开 `nginx-1.20.1` 文件夹，双击 `nginx.exe` 文件运行（提前迁移到非中文目录），在浏览器中访问localhost:80，即可查看前端页面。
+在资源管理器中打开 `nginx-1.20.1` 文件夹，双击 `nginx.exe` 文件运行（提前迁移到非中文目录），在浏览器中访问localhost:
+80，即可查看前端页面。
 
 ## Git推送
 
@@ -244,7 +245,10 @@ public static Claims parseJWT(String secretKey, String token) {
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <!--注意一定不能换行-->
-            <pattern>%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}</pattern>
+            <pattern>%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p})
+                %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan}
+                %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}
+            </pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>
@@ -290,28 +294,36 @@ public static Claims parseJWT(String secretKey, String token) {
 我们已经在 `JwtTokenAdminInterceptor.java` 中实现了JWT的拦截器 `preHandle` 方法，获取到了一个 `Long empId`
 的值，这个值就是当前登录员工的id，目前的问题是如何将这个值传递到服务层的 `saveEmployee` 方法中。
 
-可以使用ThreadLocal来存储当前登录员工的id，这样在服务层就可以直接获取到这个值。ThreadLocal为每个线程提供了一个独立的变量副本，适合存储当前线程的上下文信息。只有在线程内才能获取到对应的值，线程外不能访问，有线程隔离的效果。而Spring Boot的每个请求都是在独立的线程中处理的，所以可以使用ThreadLocal来存储当前登录员工的id。
+可以使用ThreadLocal来存储当前登录员工的id，这样在服务层就可以直接获取到这个值。ThreadLocal为每个线程提供了一个独立的变量副本，适合存储当前线程的上下文信息。只有在线程内才能获取到对应的值，线程外不能访问，有线程隔离的效果。而Spring
+Boot的每个请求都是在独立的线程中处理的，所以可以使用ThreadLocal来存储当前登录员工的id。
 
 为证明这一点，在拦截器、控制层和服务层的对应方法中都打印当前线程ID和方法名称，控制台的输出如下
+
 ```
 70 - JwtTokenAdminInterceptor preHandle
 70 - EmployeeController saveEmployee
 70 - EmployeeServiceImpl saveEmployee
 ```
+
 而**每次发起请求时，线程ID是不同的**。
 
 由于此处实现的是创建用户的功能，所以两个字段 `create_user` 和 `update_user` 都是当前登录员工的id。
-
 
 ## 分页查询 `GET /admin/employee/page`
 
 ### 实现
 
-关键思想：将前端页面传来的分页参数和最终返回的分页结果分别封装到两个实体对象 `EmployeePageQueryDTO` 和 `PageResult<V>` 中，其中用于接收前端页面的DTO实体保存了根据 `name` 字段模糊查询的条件、分页参数 `page` 和 `pageSize`，而返回的分页结果实体则保存了总记录数 `total` 、总页数 `pages` 和分页数据 `records`。
+关键思想：将前端页面传来的分页参数和最终返回的分页结果分别封装到两个实体对象 `EmployeePageQueryDTO` 和 `PageResult<V>`
+中，其中用于接收前端页面的DTO实体保存了根据 `name` 字段模糊查询的条件、分页参数 `page` 和 `pageSize`，而返回的分页结果实体则保存了总记录数
+`total` 、总页数 `pages` 和分页数据 `records`。
 
-在 `EmployeeController.java` 中添加新增员工的接口方法 `queryEmployeesPage` ，它接收一个前端传来的 `EmployeePageQueryDTO` 对象，使用 `@ParameterObject` 注解使用Spring Boot的参数对象功能，自动将前端传来的分页参数封装到该对象中。方法中调用服务层的 `employeeService.queryEmployeesPage(employeePageQueryDTO)` 来查询员工信息。
+在 `EmployeeController.java` 中添加新增员工的接口方法 `queryEmployeesPage` ，它接收一个前端传来的 `EmployeePageQueryDTO`
+对象，使用 `@ParameterObject` 注解使用Spring Boot的参数对象功能，自动将前端传来的分页参数封装到该对象中。方法中调用服务层的
+`employeeService.queryEmployeesPage(employeePageQueryDTO)` 来查询员工信息。
 
-通过Mybatis Plus的实现非常简单，最后的 `PageResult.of(queryPage)` 用来将查询到的分页结果通过 `getRecords()` 方法转换成 `List<Employee>` 的结果列表，然后封装进 `PageResult<Employee>` 对象中返回，注意判空判null。
+通过Mybatis Plus的实现非常简单，最后的 `PageResult.of(queryPage)` 用来将查询到的分页结果通过 `getRecords()` 方法转换成
+`List<Employee>` 的结果列表，然后封装进 `PageResult<Employee>` 对象中返回，注意判空判null。
+
 ```java
 public PageResult<Employee> queryEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO) {
     int page = employeePageQueryDTO.getPage();
@@ -329,18 +341,24 @@ public PageResult<Employee> queryEmployeesPage(EmployeePageQueryDTO employeePage
 
 MP的的分页查询通过注册一个 `PaginationInnerInterceptor` 拦截器来实现的，这个拦截器会监听所有MyBatis即将执行的SQL操作。
 
-当调用一个传入 `IPage` 对象的Mapper方法时（在代码中为 `.page(p)` ），MP会通过 `ThreadLocal` （底层实际就是个Map）将该分页对象存储起来，确保分页参数在同一个线程内进行传递，无需通过方法参数传递，发生在 `PaginationInnerInterceptor` 内。
+当调用一个传入 `IPage` 对象的Mapper方法时（在代码中为 `.page(p)` ），MP会通过 `ThreadLocal`
+（底层实际就是个Map）将该分页对象存储起来，确保分页参数在同一个线程内进行传递，无需通过方法参数传递，发生在
+`PaginationInnerInterceptor` 内。
 
-当 `lambdaQuery()` 构建的查询即将被MyBatis的 `Executor` 执行时，分页拦截器会接入，检查当前线程中的 `ThreadLocal` 是否有分页对象。如果有，它会修改SQL语句，添加 `LIMIT` 和 `OFFSET` 子句来实现分页查询。
+当 `lambdaQuery()` 构建的查询即将被MyBatis的 `Executor` 执行时，分页拦截器会接入，检查当前线程中的 `ThreadLocal`
+是否有分页对象。如果有，它会修改SQL语句，添加 `LIMIT` 和 `OFFSET` 子句来实现分页查询。
 这意味着，MP的分页查询实际上是通过修改SQL语句来实现的，而不是通过在Java代码中手动处理分页逻辑。
 
 ### 时间转换
 
-在前端页面中希望时间显示为 `yyyy-MM-dd HH:mm:ss` 的格式，可以在 `Employee.java` 实体类中添加 `@DateTimeFormat` 或 `@JsonFormat` 注解来指定时间格式。
+在前端页面中希望时间显示为 `yyyy-MM-dd HH:mm:ss` 的格式，可以在 `Employee.java` 实体类中添加 `@DateTimeFormat` 或
+`@JsonFormat` 注解来指定时间格式。
 
-但这种方法的问题是每个时间字段都需要添加注解，比较麻烦。可以在 `WebMvcConfiguration` 中配置一个Jackson的对象转换器，通过定义一个 `Jackson2ObjectMapperBuilderCustomizer` 的Bean来自定义全局的时间格式。
+但这种方法的问题是每个时间字段都需要添加注解，比较麻烦。可以在 `WebMvcConfiguration` 中配置一个Jackson的对象转换器，通过定义一个
+`Jackson2ObjectMapperBuilderCustomizer` 的Bean来自定义全局的时间格式。
 
 ```java
+
 @Bean
 public Jackson2ObjectMapperBuilderCustomizer jackson2ObjectMapperBuilderCustomizer() {
     return builder -> {
@@ -354,9 +372,11 @@ public Jackson2ObjectMapperBuilderCustomizer jackson2ObjectMapperBuilderCustomiz
 
 ### 实现
 
-这两个接口的实现比较简单，直接调用 `BaseMapper` 的 `selectById` 和 `updateById` 方法即可。注意更新时需要将 `update_user` 和 `update_time` 字段设置为当前登录员工的id和当前时间。
+这两个接口的实现比较简单，直接调用 `BaseMapper` 的 `selectById` 和 `updateById` 方法即可。注意更新时需要将 `update_user` 和
+`update_time` 字段设置为当前登录员工的id和当前时间。
 
 ```java
+
 @Override
 public Integer editEmployee(EmployeeDTO employeeDTO) {
     Employee employee = BeanUtil.copyProperties(employeeDTO, Employee.class);
@@ -368,6 +388,18 @@ public Integer editEmployee(EmployeeDTO employeeDTO) {
 
 ### 技术细节
 
-建议在 `Employee` 实体类的 `password` 字段上添加 `@JsonIgnore` 注解，这样在序列化时会忽略该字段，避免将密码（无论是明文还是加密后的，加密也有机会使用哈希碰撞进行破解）暴露给前端，进一步增加安全性。
+建议在 `Employee` 实体类的 `password` 字段上添加 `@JsonIgnore`
+注解，这样在序列化时会忽略该字段，避免将密码（无论是明文还是加密后的，加密也有机会使用哈希碰撞进行破解）暴露给前端，进一步增加安全性。
 
+## 分类管理模块的各项功能
 
+### 实现
+
+创建、继承并实现以下几个类以使用MyBatis Plus的自带接口，其他的参考员工管理模块即可。一个新模块的创建也可以参考以下步骤。
+
+|          类名           |                   继承                    |        实现         |       自动装配        |
+|:---------------------:|:---------------------------------------:|:-----------------:|:-----------------:|
+| `CategoryController`  |                    /                    |         /         | `CategoryService` |
+|   `CategoryService`   |          `IService<Category>`           |         /         |         /         |
+| `CategoryServiceImpl` | `ServiceImpl<CategoryMapper, Category>` | `CategoryService` | `CategoryMapper`  |
+|   `CategoryMapper`    |         `BaseMapper<Category>`          |         /         |         /         |

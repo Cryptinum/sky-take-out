@@ -27,7 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/employee")
 @Slf4j
-@Tag(name = "用户上下线接口", description = "提供用户登录和登出的一系列功能")
+@Tag(name = "用户接口", description = "提供用户管理的一系列功能")
 public class EmployeeController {
 
     @Autowired
