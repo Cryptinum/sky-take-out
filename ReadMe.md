@@ -301,3 +301,51 @@ public static Claims parseJWT(String secretKey, String token) {
 而**每次发起请求时，线程ID是不同的**。
 
 由于此处实现的是创建用户的功能，所以两个字段 `create_user` 和 `update_user` 都是当前登录员工的id。
+
+
+## 分页查询 `GET /admin/employee/page`
+
+### 实现
+
+关键思想：将前端页面传来的分页参数和最终返回的分页结果分别封装到两个实体对象 `EmployeePageQueryDTO` 和 `PageResult<V>` 中，其中用于接收前端页面的DTO实体保存了根据 `name` 字段模糊查询的条件、分页参数 `page` 和 `pageSize`，而返回的分页结果实体则保存了总记录数 `total` 、总页数 `pages` 和分页数据 `records`。
+
+在 `EmployeeController.java` 中添加新增员工的接口方法 `queryEmployeesPage` ，它接收一个前端传来的 `EmployeePageQueryDTO` 对象，使用 `@ParameterObject` 注解使用Spring Boot的参数对象功能，自动将前端传来的分页参数封装到该对象中。方法中调用服务层的 `employeeService.queryEmployeesPage(employeePageQueryDTO)` 来查询员工信息。
+
+通过Mybatis Plus的实现非常简单，最后的 `PageResult.of(queryPage)` 用来将查询到的分页结果通过 `getRecords()` 方法转换成 `List<Employee>` 的结果列表，然后封装进 `PageResult<Employee>` 对象中返回，注意判空判null。
+```java
+public PageResult<Employee> queryEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO) {
+    int page = employeePageQueryDTO.getPage();
+    int pageSize = employeePageQueryDTO.getPageSize();
+    String name = employeePageQueryDTO.getName();
+    Page<Employee> p = Page.of(page, pageSize);
+    Page<Employee> queryPage = lambdaQuery()
+            .like(name != null && !name.isEmpty(), Employee::getName, name)
+            .page(p);
+    return PageResult.of(queryPage);
+}
+```
+
+### 原理
+
+MP的的分页查询通过注册一个 `PaginationInnerInterceptor` 拦截器来实现的，这个拦截器会监听所有MyBatis即将执行的SQL操作。
+
+当调用一个传入 `IPage` 对象的Mapper方法时（在代码中为 `.page(p)` ），MP会通过 `ThreadLocal` （底层实际就是个Map）将该分页对象存储起来，确保分页参数在同一个线程内进行传递，无需通过方法参数传递，发生在 `PaginationInnerInterceptor` 内。
+
+当 `lambdaQuery()` 构建的查询即将被MyBatis的 `Executor` 执行时，分页拦截器会接入，检查当前线程中的 `ThreadLocal` 是否有分页对象。如果有，它会修改SQL语句，添加 `LIMIT` 和 `OFFSET` 子句来实现分页查询。
+这意味着，MP的分页查询实际上是通过修改SQL语句来实现的，而不是通过在Java代码中手动处理分页逻辑。
+
+### 时间转换
+
+在前端页面中希望时间显示为 `yyyy-MM-dd HH:mm:ss` 的格式，可以在 `Employee.java` 实体类中添加 `@DateTimeFormat` 或 `@JsonFormat` 注解来指定时间格式。
+
+但这种方法的问题是每个时间字段都需要添加注解，比较麻烦。可以在 `WebMvcConfiguration` 中配置一个Jackson的对象转换器，通过定义一个 `Jackson2ObjectMapperBuilderCustomizer` 的Bean来自定义全局的时间格式。
+
+```java
+@Bean
+public Jackson2ObjectMapperBuilderCustomizer jackson2ObjectMapperBuilderCustomizer() {
+    return builder -> {
+        builder.serializerByType(LocalDateTime.class, new LocalDateTimeSerializer(DateTimeFormatter.ofPattern(DATETIME_FORMAT)));
+        builder.deserializerByType(LocalDateTime.class, new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern(DATETIME_FORMAT)));
+    };
+}
+```

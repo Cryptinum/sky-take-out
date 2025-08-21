@@ -3,8 +3,10 @@ package com.sky.controller.admin;
 import com.sky.constant.JwtClaimsConstant;
 import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
+import com.sky.dto.EmployeePageQueryDTO;
 import com.sky.entity.Employee;
 import com.sky.properties.JwtProperties;
+import com.sky.result.PageResult;
 import com.sky.result.Result;
 import com.sky.service.EmployeeService;
 import com.sky.utils.JwtUtil;
@@ -12,11 +14,9 @@ import com.sky.vo.EmployeeLoginVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -86,6 +86,14 @@ public class EmployeeController {
         System.err.println(Thread.currentThread().getId() + " - EmployeeController saveEmployee");
         Integer success = employeeService.saveEmployee(employeeDTO);
         return Result.success(success);
+    }
+
+    @GetMapping("/page")
+    @Operation(summary = "查询员工分页数据", description = "提供员工分页查询功能")
+    public Result<PageResult<Employee>> queryEmployeePage(@ParameterObject EmployeePageQueryDTO employeePageQueryDTO) {
+        log.info("查询员工分页数据:{}", employeePageQueryDTO);
+        PageResult<Employee> employees = employeeService.queryEmployeesPage(employeePageQueryDTO);
+        return Result.success(employees);
     }
 
 }

@@ -11,6 +11,18 @@
     <groupId>com.sky</groupId>
     <artifactId>sky-take-out</artifactId>
     <packaging>pom</packaging>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>6</source>
+                    <target>6</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>sky-common</module>
@@ -36,6 +48,7 @@
         <poi>3.16</poi>
         <springdoc>2.8.9</springdoc>
         <spring>3.5.4</spring>
+        <hutool>5.8.38</hutool>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -169,7 +182,7 @@
             <dependency>
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-core</artifactId>
-                <version>5.8.38</version>
+                <version>${hutool}</version>
             </dependency>
 
             <dependency>
