@@ -113,7 +113,7 @@ ipconfig /flushdns
 
 目前存在的问题是，员工表 `employee` 中的 `password` 字段是明文存储的，应该使用加密算法进行加密存储。
 
-## 踩的一些坑
+## 常见问题的解决方案
 
 ### 端口占用问题
 
@@ -163,7 +163,7 @@ upstream webservers {
 
 ### 导入依赖和配置修改
 
-一般来说，源代码中需要修改的地方有
+一般来说，源代码和配置中需要修改和增加的地方有
 
 - `javax.servlet` 改为 `jakarta.servlet`
 - `@ApiModel` 和 `@ApiModelProperty` 改为 `@Schema`
@@ -174,13 +174,13 @@ upstream webservers {
 - 添加Spring Boot的 `banner-mode: off` 和Mybatis Plus的 `banner: false`
 - JWT相关的依赖需要添加 `jjwt-api`, `jjwt-impl`, `jjwt-jackson` 三个依赖
 
-### Knife4J配置静态资源映射
+### Spring MVC配置静态资源映射
 
 不添加 `addResourceHandler` 方法的话，访问 `/doc.html` 时会出现404错误。
 
 这是因为如果不进行静态资源配置的话，Spring Boot会默认将请求交给 `Controller` 进行处理，而 `/doc.html`
 是一个静态资源文件，需要通过静态资源映射来访问。
-添加以下代码到 `Knife4jConfig.java` 中：
+添加以下代码到 `WebMvcConfiguration.java` 中：
 
 ```java
 public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -415,21 +415,21 @@ public Integer editEmployee(EmployeeDTO employeeDTO) {
 在删除分类前，需要先判断该分类下是否有菜品存在，如果有则不能删除。那么需要创建 `Dish` 和 `Setmeal` 对应的Mapper接口，然后再调用对应的 `selectCount` 方法查询对应分类id的菜品条数，如果不为0则不能删除。
 
 ```java
-    @Override
-    public Integer deleteCategory(Long id) {
-        // 如果分类关联有菜品那么就不能删除
-        Long count = dishMapper.selectCount(new LambdaQueryWrapper<Dish>().eq(Dish::getCategoryId, id));
-        if (count > 0) {
-            throw new DeletionNotAllowedException(MessageConstant.CATEGORY_BE_RELATED_BY_DISH);
-        }
-
-        count = setmealMapper.selectCount(new LambdaQueryWrapper<Setmeal>().eq(Setmeal::getCategoryId, id));
-        if (count > 0) {
-            throw new DeletionNotAllowedException(MessageConstant.CATEGORY_BE_RELATED_BY_SETMEAL);
-        }
-
-        return categoryMapper.deleteById(id);
+@Override
+public Integer deleteCategory(Long id) {
+    // 如果分类关联有菜品那么就不能删除
+    Long count = dishMapper.selectCount(new LambdaQueryWrapper<Dish>().eq(Dish::getCategoryId, id));
+    if (count > 0) {
+        throw new DeletionNotAllowedException(MessageConstant.CATEGORY_BE_RELATED_BY_DISH);
     }
+
+    count = setmealMapper.selectCount(new LambdaQueryWrapper<Setmeal>().eq(Setmeal::getCategoryId, id));
+    if (count > 0) {
+        throw new DeletionNotAllowedException(MessageConstant.CATEGORY_BE_RELATED_BY_SETMEAL);
+    }
+
+    return categoryMapper.deleteById(id);
+}
 ```
 
 
@@ -504,6 +504,7 @@ public enum OperationType {
     UPDATE
 }
 ```
+
 ```java
 @Target(ElementType.METHOD) // 注解作用于方法
 @Retention(RetentionPolicy.RUNTIME)
@@ -579,3 +580,68 @@ public class AutoFillAspect {
 ```
 
 最后在Service方法上添加 `@AutoFill` 注解，指定操作类型为 `INSERT` 或 `UPDATE`，删除原方法中的对应代码即可。
+
+
+## 图片上传接口 `POST /admin/common/upload`
+
+### 实现
+
+我们的实现是将图片保存在本地资源路径中，并返回图片的访问路径。前端页面可以通过该路径来展示图片。首先需要配置保存到的路径和访问的路径，这两个配置在Controller中分别用 `@Value` 注解自动注入为 `basePath` 和 `urlPrefix` 两个对象。
+
+```yaml
+sky:
+  upload:
+    # 文件保存的绝对路径 (注意：即使在Windows下，也推荐使用正斜杠 /)
+    path: .../sky-take-out/resources/images/
+    # 对外暴露的访问路径前缀
+    url-prefix: /images/
+```
+
+然后在 `CommonController.java` 中添加上传图片的接口方法 `uploadImage`，它接收一个 `MultipartFile` 类型的参数 `file`。方法中将文件保存到指定路径，并返回图片的访问路径。部分代码可以进一步封装为工具类，再次不再赘述，只展示一个可用的方法。
+
+```java
+@PostMapping("/upload")
+@Operation(summary = "上传图片", description = "提供图片上传功能")
+public Result<String> uploadImage(MultipartFile file) {
+    log.info("上传图片：{}", file);
+
+    // 1. 生成唯一文件名，防止重名覆盖
+    String originalFilename = file.getOriginalFilename();
+
+    // 提取文件后缀，例如 .jpg
+    String extension = null;
+    if (originalFilename != null) {
+        extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+    }
+    // 使用UUID生成新的文件名
+    String newFileName = UUID.randomUUID() + extension;
+    log.info("新文件名为：{}", newFileName);
+
+    // 2. 创建文件保存的目录
+    File dir = new File(basePath);
+    // 如果目录不存在，则创建它
+    if (!dir.exists()) {
+        dir.mkdirs();
+    }
+
+    try {
+        // 3. 将临时文件转存到指定位置
+        File destFile = new File(basePath + newFileName);
+        file.transferTo(destFile);
+        log.info("文件上传成功，保存路径：{}", destFile.getAbsolutePath());
+
+        // 4. 拼接可供外部访问的URL并返回
+        String accessUrl = urlPrefix + newFileName;
+        log.info("文件访问URL：{}", accessUrl);
+        return Result.success(accessUrl);
+
+    } catch (IOException e) {
+        log.error("文件上传失败", e);
+        // throw new UploadException(MessageConstant.UPLOAD_FAILED); // 建议抛出自定义异常，由全局异常处理器捕获
+        return Result.error(MessageConstant.UPLOAD_FAILED);
+    }
+}
+```
+接着在 `WebMvcConfiguration.java` 中添加静态资源映射 `registry.addResourceHandler(urlPrefix + "**").addResourceLocations("file:" + uploadPath);` ，将上传的图片目录映射到 `/images/` 路径下，这样前端就可以通过访问 `/images/xxx.jpg`来获取上传的图片，其中 `**` 代表扫描所有子目录和文件， `file:` 表示从本地文件系统中加载资源。
+
+最后还需要在nginx配置中配置 `/images/` 的访问路径，本项目中配置到localhost的8080端口上即可。

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.sky.interceptor.JwtTokenAdminInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,12 +25,19 @@ import java.time.format.DateTimeFormatter;
 @Slf4j
 public class WebMvcConfiguration implements WebMvcConfigurer {
 
-    /**
-     * 定义日期时间格式
-     */
+    // 定义日期时间格式
     private static final String DEFAULT_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
     private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
     private static final String DEFAULT_TIME_FORMAT = "HH:mm:ss";
+
+    // 从配置文件注入文件保存的绝对路径
+    @Value("${sky.upload.path}")
+    private String uploadPath;
+
+    // 从配置文件注入对外访问的URL前缀
+    @Value("${sky.upload.url-prefix}")
+    private String urlPrefix;
+
 
     @Autowired
     private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
@@ -56,6 +64,8 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
         registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
         registry.addResourceHandler("/swagger-ui.html").addResourceLocations("classpath:/META-INF/resources/");
         registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
+        registry.addResourceHandler(urlPrefix + "**") // "**" 表示匹配该路径下的所有文件
+                .addResourceLocations("file:" + uploadPath); // "file:" 协议表示从文件系统中加载资源
     }
 
     /**
