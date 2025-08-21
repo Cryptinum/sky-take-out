@@ -1,6 +1,7 @@
 package com.sky.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -69,6 +70,11 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         return employee;
     }
 
+    /**
+     * 保存员工信息
+     * @param employeeDTO
+     * @return
+     */
     @Override
     public Integer saveEmployee(EmployeeDTO employeeDTO) {
         System.err.println(Thread.currentThread().getId() + " - EmployeeServiceImpl saveEmployee");
@@ -88,6 +94,11 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         return employeeMapper.insert(employee);
     }
 
+    /**
+     * 分页查询员工信息
+     * @param employeePageQueryDTO
+     * @return
+     */
     @Override
     public PageResult<Employee> queryEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO) {
         int page = employeePageQueryDTO.getPage();
@@ -103,11 +114,40 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         return PageResult.of(queryPage);
     }
 
+    /**
+     * 更新员工状态
+     * @param status
+     * @param id
+     * @return
+     */
     @Override
     public Integer updateEmployeeStatus(Integer status, Long id) {
-        Employee employee = employeeMapper.selectById(id);
-        employee.setStatus(status);
+        return employeeMapper.update(new LambdaUpdateWrapper<Employee>()
+                .eq(Employee::getId, id)
+                .set(Employee::getStatus, status));
+    }
+
+    /**
+     * 根据ID查询员工信息
+     * @param id
+     * @return
+     */
+    @Override
+    public Employee getEmployeeById(Long id) {
+        return employeeMapper.selectById(id);
+    }
+    /**
+     * 编辑员工信息
+     * @param employeeDTO
+     * @return
+     */
+    @Override
+    public Integer editEmployee(EmployeeDTO employeeDTO) {
+        Employee employee = BeanUtil.copyProperties(employeeDTO, Employee.class);
+        employee.setUpdateTime(LocalDateTime.now());
+        employee.setUpdateUser(BaseContext.getCurrentId());
         return employeeMapper.updateById(employee);
     }
+
 
 }

@@ -349,3 +349,25 @@ public Jackson2ObjectMapperBuilderCustomizer jackson2ObjectMapperBuilderCustomiz
     };
 }
 ```
+
+## 修改员工信息 `GET /admin/employee/{id}` `PUT /admin/employee`
+
+### 实现
+
+这两个接口的实现比较简单，直接调用 `BaseMapper` 的 `selectById` 和 `updateById` 方法即可。注意更新时需要将 `update_user` 和 `update_time` 字段设置为当前登录员工的id和当前时间。
+
+```java
+@Override
+public Integer editEmployee(EmployeeDTO employeeDTO) {
+    Employee employee = BeanUtil.copyProperties(employeeDTO, Employee.class);
+    employee.setUpdateTime(LocalDateTime.now());
+    employee.setUpdateUser(BaseContext.getCurrentId());
+    return employeeMapper.updateById(employee);
+}
+```
+
+### 技术细节
+
+建议在 `Employee` 实体类的 `password` 字段上添加 `@JsonIgnore` 注解，这样在序列化时会忽略该字段，避免将密码（无论是明文还是加密后的，加密也有机会使用哈希碰撞进行破解）暴露给前端，进一步增加安全性。
+
+
