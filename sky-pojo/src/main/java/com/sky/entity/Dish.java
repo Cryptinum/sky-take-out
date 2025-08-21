@@ -1,25 +1,22 @@
 package com.sky.entity;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 /**
  * 菜品
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "菜品实体类")
-public class Dish implements Serializable {
+public class Dish extends BaseEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -44,17 +41,5 @@ public class Dish implements Serializable {
 
     @Schema(description = "菜品状态，0停售，1起售）", example = "1")
     private Integer status;
-
-    @Schema(description = "创建时间", example = "2023-10-01 12:00:00")
-    private LocalDateTime createTime;
-
-    @Schema(description = "更新时间", example = "2023-10-01 12:00:00")
-    private LocalDateTime updateTime;
-
-    @Schema(description = "创建用户ID", example = "1")
-    private Long createUser;
-
-    @Schema(description = "更新用户ID", example = "1")
-    private Long updateUser;
 
 }

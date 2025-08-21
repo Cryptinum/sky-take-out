@@ -16,7 +16,7 @@ public interface CategoryService extends IService<Category> {
      * @param type
      * @return
      */
-    List<Category> getCategoryByType(Integer type, String name);
+    List<Category> getCategoryByType(Integer type);
 
 
     /**

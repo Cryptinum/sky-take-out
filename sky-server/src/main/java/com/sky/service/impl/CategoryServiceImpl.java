@@ -51,10 +51,9 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
      * @return
      */
     @Override
-    public List<Category> getCategoryByType(Integer type, String name) {
+    public List<Category> getCategoryByType(Integer type) {
         return categoryMapper.selectList(new LambdaQueryWrapper<Category>()
-                .eq(type != null, Category::getType, type)
-                .like(name != null && !name.isEmpty(), Category::getName, name));
+                .eq(type != null, Category::getType, type));
     }
 
     /**

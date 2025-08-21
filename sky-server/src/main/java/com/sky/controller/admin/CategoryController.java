@@ -32,9 +32,9 @@ public class CategoryController {
 
     @GetMapping("/list")
     @Operation(summary = "根据类型查询分类", description = "根据分类类型和名称查询分类列表")
-    public Result<List<Category>> getCategoryByType(@RequestParam Integer type, @RequestParam String name) {
-        log.info("根据类型查询分类: type: {}, name: {}", type, name);
-        List<Category> list = categoryService.getCategoryByType(type, name);
+    public Result<List<Category>> getCategoryByType(@RequestParam Integer type) {
+        log.info("根据类型查询分类: type: {}", type);
+        List<Category> list = categoryService.getCategoryByType(type);
         return Result.success(list);
     }
 

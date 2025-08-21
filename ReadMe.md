@@ -645,3 +645,22 @@ public Result<String> uploadImage(MultipartFile file) {
 接着在 `WebMvcConfiguration.java` 中添加静态资源映射 `registry.addResourceHandler(urlPrefix + "**").addResourceLocations("file:" + uploadPath);` ，将上传的图片目录映射到 `/images/` 路径下，这样前端就可以通过访问 `/images/xxx.jpg`来获取上传的图片，其中 `**` 代表扫描所有子目录和文件， `file:` 表示从本地文件系统中加载资源。
 
 最后还需要在nginx配置中配置 `/images/` 的访问路径，本项目中配置到localhost的8080端口上即可。
+
+
+## 菜品管理模块
+
+业务规则：
+1. 菜品名称必须唯一
+2. 菜品分类必须存在
+3. 新增菜品时可以选择口味
+4. 每个菜品必须对应一张图片
+
+### 实现
+
+#### 删除菜品接口 `DELETE /admin/dish`
+
+业务规则
+1. 一次可以删除一个菜品，也可以批量删除
+2. 起售中的菜品不能删除
+3. 被套餐关联的菜品不能删除
+4. 删除后一并删掉菜品口味
