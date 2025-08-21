@@ -1,3 +1,9 @@
+# 项目说明
+
+本项目基于苍穹外卖项目，将各种依赖项升级至较新的版本，包括使用Spring Boot 3, MyBatis Plus 3.5, OpenAPI 3等。文档编写和注释均不详细，
+
+
+
 # Day 1
 
 ## 前端环境
@@ -111,7 +117,7 @@ ipconfig /flushdns
 
 ### 端口占用问题
 
-我们的项目实际上是先走的nginx的反向代理，将前端发送的动态请求由nginx转发到后端服务器。
+项目实际上是先走的nginx的反向代理，将前端发送的动态请求由nginx转发到后端服务器。
 前端访问的是 `http://localhost/api/**` ，然后转发到了后端服务器的 `http://localhost:8080/admin/**` 进行处理。
 
 使用nginx反向代理的优点：
