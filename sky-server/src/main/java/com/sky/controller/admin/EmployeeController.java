@@ -96,4 +96,11 @@ public class EmployeeController {
         return Result.success(employees);
     }
 
+    @PostMapping("/status/{status}")
+    @Operation(summary = "启用、禁用员工账号", description = "提供修改员工状态功能")
+    public Result<Integer> updateEmployeeStatus(@PathVariable Integer status, @RequestParam Long id) {
+        log.info("修改员工状态: id={}, status={}", id, status);
+        Integer success = employeeService.updateEmployeeStatus(status, id);
+        return Result.success(success);
+    }
 }

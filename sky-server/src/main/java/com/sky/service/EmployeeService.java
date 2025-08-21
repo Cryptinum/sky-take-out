@@ -19,4 +19,6 @@ public interface EmployeeService extends IService<Employee> {
     Integer saveEmployee(EmployeeDTO employeeDTO);
 
     PageResult<Employee> queryEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO);
+
+    Integer updateEmployeeStatus(Integer status, Long id);
 }

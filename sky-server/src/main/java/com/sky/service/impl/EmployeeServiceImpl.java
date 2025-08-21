@@ -103,4 +103,11 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         return PageResult.of(queryPage);
     }
 
+    @Override
+    public Integer updateEmployeeStatus(Integer status, Long id) {
+        Employee employee = employeeMapper.selectById(id);
+        employee.setStatus(status);
+        return employeeMapper.updateById(employee);
+    }
+
 }
