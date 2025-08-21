@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sky.constant.MessageConstant;
 import com.sky.constant.StatusConstant;
-import com.sky.context.BaseContext;
 import com.sky.dto.CategoryDTO;
 import com.sky.dto.CategoryPageQueryDTO;
 import com.sky.entity.Category;
@@ -23,7 +22,6 @@ import com.sky.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -53,7 +51,7 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
      * @return
      */
     @Override
-    public List<Category> queryByType(Integer type, String name) {
+    public List<Category> getCategoryByType(Integer type, String name) {
         return categoryMapper.selectList(new LambdaQueryWrapper<Category>()
                 .eq(type != null, Category::getType, type)
                 .like(name != null && !name.isEmpty(), Category::getName, name));
@@ -66,14 +64,14 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
      * @return
      */
     @Override
-    public PageResult<Category> queryCategoryPage(CategoryPageQueryDTO categoryPageQueryDTO) {
+    public PageResult<Category> getCategoryPage(CategoryPageQueryDTO categoryPageQueryDTO) {
         String name = categoryPageQueryDTO.getName();
         Integer type = categoryPageQueryDTO.getType();
         int page = categoryPageQueryDTO.getPage();
         int pageSize = categoryPageQueryDTO.getPageSize();
 
         Page<Category> p = Page.of(page, pageSize);
-        p.addOrder(OrderItem.desc("sort"));
+        p.addOrder(OrderItem.asc("sort"));
 
         Page<Category> queryPage = lambdaQuery()
                 .like(name != null && !name.isEmpty(), Category::getName, name)
@@ -90,13 +88,9 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
      * @return
      */
     @Override
-    public Integer addCategory(CategoryDTO categoryDTO) {
+    public Integer saveCategory(CategoryDTO categoryDTO) {
         Category category = BeanUtil.copyProperties(categoryDTO, Category.class);
         category.setStatus(StatusConstant.DISABLE);  // 默认禁用
-        category.setCreateTime(LocalDateTime.now());
-        category.setUpdateTime(LocalDateTime.now());
-        category.setCreateUser(BaseContext.getCurrentId());
-        category.setUpdateUser(BaseContext.getCurrentId());
         return categoryMapper.insert(category);
     }
 
@@ -147,8 +141,6 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
     @Override
     public Integer editCategory(CategoryDTO categoryDTO) {
         Category category = BeanUtil.copyProperties(categoryDTO, Category.class);
-        category.setUpdateTime(LocalDateTime.now());
-        category.setUpdateUser(BaseContext.getCurrentId());
         return categoryMapper.updateById(category);
     }
 }

@@ -409,3 +409,173 @@ public Integer editEmployee(EmployeeDTO employeeDTO) {
 |   `CategoryService`   |          `IService<Category>`           |         /         |         /         |
 | `CategoryServiceImpl` | `ServiceImpl<CategoryMapper, Category>` | `CategoryService` | `CategoryMapper`  |
 |   `CategoryMapper`    |         `BaseMapper<Category>`          |         /         |         /         |
+
+### 注意事项
+
+在删除分类前，需要先判断该分类下是否有菜品存在，如果有则不能删除。那么需要创建 `Dish` 和 `Setmeal` 对应的Mapper接口，然后再调用对应的 `selectCount` 方法查询对应分类id的菜品条数，如果不为0则不能删除。
+
+```java
+    @Override
+    public Integer deleteCategory(Long id) {
+        // 如果分类关联有菜品那么就不能删除
+        Long count = dishMapper.selectCount(new LambdaQueryWrapper<Dish>().eq(Dish::getCategoryId, id));
+        if (count > 0) {
+            throw new DeletionNotAllowedException(MessageConstant.CATEGORY_BE_RELATED_BY_DISH);
+        }
+
+        count = setmealMapper.selectCount(new LambdaQueryWrapper<Setmeal>().eq(Setmeal::getCategoryId, id));
+        if (count > 0) {
+            throw new DeletionNotAllowedException(MessageConstant.CATEGORY_BE_RELATED_BY_SETMEAL);
+        }
+
+        return categoryMapper.deleteById(id);
+    }
+```
+
+
+
+
+
+# Day 3
+
+## 代码重构 - 公共字段填充
+
+### 使用Mybatis Plus实现
+
+Mybatis Plus提供了公共字段填充的功能，可以通过实现 `MetaObjectHandler` 接口来实现自动填充公共字段。
+
+首先创建一个公共字段实体 `BaseEntity.java`，包含 `create_time`、`create_user`、`update_time` 和 `update_user`字段。针对不同的CRUD方法，需要在字段上标注 `@TableField(fill = FieldFill.XXX)` ， 然后让 `Employee` 和 `Category` 实体类继承 `BaseEntity` 类，同时删掉这两格实体类中对应的字段，防止配置覆盖。
+
+```java
+@Data
+public class BaseEntity implements Serializable {
+
+    @TableField(fill = FieldFill.INSERT) // 插入时填充
+    @Schema(description = "创建时间", example = "2023-10-01 12:00:00")
+    //@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createTime;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE) // 插入和更新时都填充
+    @Schema(description = "更新时间", example = "2023-10-01 12:00:00")
+    //@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime updateTime;
+
+    @TableField(fill = FieldFill.INSERT) // 插入时填充
+    @Schema(description = "创建人ID", example = "1")
+    private Long createUser;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE) // 插入和更新时都填充
+    @Schema(description = "修改人ID", example = "1")
+    private Long updateUser;
+}
+```
+
+然后创建一个公共字段填充器 `BaseEntityMetaObjectHandler.java` 实现 `MetaObjectHandler` 接口，重写 `insertFill` 和 `updateFill` 方法。
+
+```java
+@Component
+@Slf4j
+public class BaseEntityMetaObjectHandler implements MetaObjectHandler {
+    @Override
+    public void insertFill(MetaObject metaObject) {
+        this.strictInsertFill(metaObject, "createTime", LocalDateTime::now, LocalDateTime.class);
+        this.strictInsertFill(metaObject, "updateTime", LocalDateTime::now, LocalDateTime.class);
+        this.strictInsertFill(metaObject, "createUser", BaseContext::getCurrentId, Long.class);
+        this.strictInsertFill(metaObject, "updateUser", BaseContext::getCurrentId, Long.class);
+    }
+    
+    @Override
+    public void updateFill(MetaObject metaObject) {
+        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime::now, LocalDateTime.class);
+        this.strictUpdateFill(metaObject, "updateUser", BaseContext::getCurrentId, Long.class);
+    }
+}
+```
+
+最后删除Service中的对应代码即可。
+
+### 使用Spring Boot实现
+
+首先创建一个自定义枚举类和注解，标识哪些方法需要被AOP切面拦截并处理。
+
+```java
+public enum OperationType {
+    INSERT,
+    UPDATE
+}
+```
+```java
+@Target(ElementType.METHOD) // 注解作用于方法
+@Retention(RetentionPolicy.RUNTIME)
+public @interface AutoFill {
+    OperationType value(); // 通过 value 属性指定操作类型 (INSERT 或 UPDATE)
+}
+```
+
+然后创建AOP切片类，用来拦截带有 `@AutoFill` 注解的方法，并在方法执行前后进行公共字段的填充。
+
+```java
+@Aspect
+@Component
+@Slf4j
+public class AutoFillAspect {
+
+    // 定义切点，拦截所有 com.sky.mapper 包下二级目录和被 @AutoFill 注解标记的方法
+    @Pointcut("execution(* com.sky.mapper.*.*(..)) && @annotation(com.sky.annotation.AutoFill)")
+    public void autoFillPointCut() {}
+
+    // 定义前置通知，在目标方法执行前执行
+    @Before("autoFillPointCut()")
+    public void autoFill(JoinPoint joinPoint) {
+        log.info("开始进行公共字段自动填充...");
+
+        // 1. 获取注解的操作类型 (INSERT/UPDATE)
+        // 方法签名对象
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        // 获取方法上的注解
+        AutoFill autoFill = signature.getMethod().getAnnotation(AutoFill.class);
+        // 获得注解的操作类型
+        OperationType operationType = autoFill.value();
+
+        // 2. 获取方法的参数 (实体对象)
+        Object[] args = joinPoint.getArgs();
+        if (args == null || args.length == 0) {
+            return;
+        }
+        Object entity = args[0]; // 约定第一个参数为实体对象
+
+        // 3. 准备要填充的数据
+        LocalDateTime now = LocalDateTime.now();
+        Long currentId = BaseContext.getCurrentId();
+
+        // 4. 根据操作类型，通过反射为对象属性赋值
+        if (operationType == OperationType.INSERT) {
+            try {
+                Method setCreateTime = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_CREATE_TIME, LocalDateTime.class);
+                Method setCreateUser = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_CREATE_USER, Long.class);
+                Method setUpdateTime = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_UPDATE_TIME, LocalDateTime.class);
+                Method setUpdateUser = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_UPDATE_USER, Long.class);
+
+                setCreateTime.invoke(entity, now);
+                setCreateUser.invoke(entity, currentId);
+                setUpdateTime.invoke(entity, now);
+                setUpdateUser.invoke(entity, currentId);
+            } catch (Exception e) {
+                log.error("AOP自动填充[INSERT]异常", e);
+            }
+        } else if (operationType == OperationType.UPDATE) {
+            try {
+                Method setUpdateTime = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_UPDATE_TIME, LocalDateTime.class);
+                Method setUpdateUser = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_UPDATE_USER, Long.class);
+                
+                setUpdateTime.invoke(entity, now);
+                setUpdateUser.invoke(entity, currentId);
+            } catch (Exception e) {
+                log.error("AOP自动填充[UPDATE]异常", e);
+            }
+        }
+    }
+}
+```
+
+最后在Service方法上添加 `@AutoFill` 注解，指定操作类型为 `INSERT` 或 `UPDATE`，删除原方法中的对应代码即可。

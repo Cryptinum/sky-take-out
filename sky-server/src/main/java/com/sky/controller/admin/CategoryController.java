@@ -32,33 +32,25 @@ public class CategoryController {
 
     @GetMapping("/list")
     @Operation(summary = "根据类型查询分类", description = "根据分类类型和名称查询分类列表")
-    public Result<List<Category>> queryByType(@RequestParam Integer type, @RequestParam String name) {
+    public Result<List<Category>> getCategoryByType(@RequestParam Integer type, @RequestParam String name) {
         log.info("根据类型查询分类: type: {}, name: {}", type, name);
-        List<Category> list = categoryService.queryByType(type, name);
+        List<Category> list = categoryService.getCategoryByType(type, name);
         return Result.success(list);
     }
 
     @GetMapping("/page")
     @Operation(summary = "分类分页查询", description = "分页查询分类列表")
-    public Result<PageResult<Category>> queryCategoryPage(@ParameterObject CategoryPageQueryDTO categoryPageQueryDTO) {
+    public Result<PageResult<Category>> getCategoryPage(@ParameterObject CategoryPageQueryDTO categoryPageQueryDTO) {
         log.info("分页查询分类列表: {}", categoryPageQueryDTO);
-        PageResult<Category> pageResult = categoryService.queryCategoryPage(categoryPageQueryDTO);
+        PageResult<Category> pageResult = categoryService.getCategoryPage(categoryPageQueryDTO);
         return Result.success(pageResult);
     }
 
     @PostMapping
     @Operation(summary = "新增菜品分类", description = "新增菜品分类")
-    public Result<Integer> addCategory(@RequestBody CategoryDTO categoryDTO) {
+    public Result<Integer> saveCategory(@RequestBody CategoryDTO categoryDTO) {
         log.info("新增菜品分类: {}", categoryDTO);
-        Integer success = categoryService.addCategory(categoryDTO);
-        return Result.success(success);
-    }
-
-    @DeleteMapping
-    @Operation(summary = "删除菜品分类", description = "根据ID删除菜品分类")
-    public Result<Integer> deleteCategory(@RequestParam Long id) {
-        log.info("删除菜品分类: id: {}", id);
-        Integer success = categoryService.deleteCategory(id);
+        Integer success = categoryService.saveCategory(categoryDTO);
         return Result.success(success);
     }
 
@@ -78,5 +70,11 @@ public class CategoryController {
         return Result.success(success);
     }
 
-
+    @DeleteMapping
+    @Operation(summary = "删除菜品分类", description = "根据ID删除菜品分类")
+    public Result<Integer> deleteCategory(@RequestParam Long id) {
+        log.info("删除菜品分类: id: {}", id);
+        Integer success = categoryService.deleteCategory(id);
+        return Result.success(success);
+    }
 }

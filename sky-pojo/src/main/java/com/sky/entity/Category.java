@@ -1,21 +1,22 @@
 package com.sky.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName(value = "category")
 @Schema(description = "菜品分类实体")
-public class Category implements Serializable {
+public class Category extends BaseEntity implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "分类ID", example = "1")
@@ -32,16 +33,4 @@ public class Category implements Serializable {
 
     @Schema(description = "分类状态 0禁用 1启用", example = "1")
     private Integer status;
-
-    @Schema(description = "创建时间", example = "2023-10-01 12:00:00")
-    private LocalDateTime createTime;
-
-    @Schema(description = "更新时间", example = "2023-10-01 12:00:00")
-    private LocalDateTime updateTime;
-
-    @Schema(description = "创建人ID", example = "1")
-    private Long createUser;
-
-    @Schema(description = "修改人ID", example = "1")
-    private Long updateUser;
 }

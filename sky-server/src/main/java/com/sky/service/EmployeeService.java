@@ -28,7 +28,7 @@ public interface EmployeeService extends IService<Employee> {
      * @param employeePageQueryDTO
      * @return
      */
-    PageResult<Employee> queryEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO);
+    PageResult<Employee> getEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO);
 
     /**
      * 更新员工状态

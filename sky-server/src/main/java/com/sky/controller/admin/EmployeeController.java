@@ -78,21 +78,19 @@ public class EmployeeController {
         return Result.success();
     }
 
-
-    @PostMapping
-    @Operation(summary = "新增员工", description = "提供新增员工功能")
-    public Result<Integer> saveEmployee(@RequestBody EmployeeDTO employeeDTO) {
-        log.info("新增员工:{}", employeeDTO);
-        System.err.println(Thread.currentThread().getId() + " - EmployeeController saveEmployee");
-        Integer success = employeeService.saveEmployee(employeeDTO);
-        return Result.success(success);
+    @GetMapping("/{id}")
+    @Operation(summary = "根据ID查询员工信息", description = "提供根据ID查询员工信息功能")
+    public Result<Employee> getEmployeeById(@PathVariable Long id) {
+        log.info("根据ID查询员工信息: id={}", id);
+        Employee employeeById = employeeService.getEmployeeById(id);
+        return Result.success(employeeById);
     }
 
     @GetMapping("/page")
     @Operation(summary = "查询员工分页数据", description = "提供员工分页查询功能")
-    public Result<PageResult<Employee>> queryEmployeePage(@ParameterObject EmployeePageQueryDTO employeePageQueryDTO) {
+    public Result<PageResult<Employee>> getEmployeePage(@ParameterObject EmployeePageQueryDTO employeePageQueryDTO) {
         log.info("查询员工分页数据:{}", employeePageQueryDTO);
-        PageResult<Employee> employees = employeeService.queryEmployeesPage(employeePageQueryDTO);
+        PageResult<Employee> employees = employeeService.getEmployeesPage(employeePageQueryDTO);
         return Result.success(employees);
     }
 
@@ -104,12 +102,12 @@ public class EmployeeController {
         return Result.success(success);
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "根据ID查询员工信息", description = "提供根据ID查询员工信息功能")
-    public Result<Employee> getEmployeeById(@PathVariable Long id) {
-        log.info("根据ID查询员工信息: id={}", id);
-        Employee employeeById = employeeService.getEmployeeById(id);
-        return Result.success(employeeById);
+    @PostMapping
+    @Operation(summary = "新增员工", description = "提供新增员工功能")
+    public Result<Integer> saveEmployee(@RequestBody EmployeeDTO employeeDTO) {
+        log.info("新增员工:{}", employeeDTO);
+        Integer success = employeeService.saveEmployee(employeeDTO);
+        return Result.success(success);
     }
 
     @PutMapping

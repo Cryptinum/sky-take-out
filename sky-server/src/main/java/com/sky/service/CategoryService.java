@@ -16,7 +16,7 @@ public interface CategoryService extends IService<Category> {
      * @param type
      * @return
      */
-    List<Category> queryByType(Integer type, String name);
+    List<Category> getCategoryByType(Integer type, String name);
 
 
     /**
@@ -24,7 +24,7 @@ public interface CategoryService extends IService<Category> {
      * @param categoryPageQueryDTO
      * @return
      */
-    PageResult<Category> queryCategoryPage(CategoryPageQueryDTO categoryPageQueryDTO);
+    PageResult<Category> getCategoryPage(CategoryPageQueryDTO categoryPageQueryDTO);
 
 
     /**
@@ -32,7 +32,7 @@ public interface CategoryService extends IService<Category> {
      * @param categoryDTO
      * @return
      */
-    Integer addCategory(CategoryDTO categoryDTO);
+    Integer saveCategory(CategoryDTO categoryDTO);
 
     /**
      * 删除菜品分类

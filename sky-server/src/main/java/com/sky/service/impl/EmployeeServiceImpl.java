@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sky.constant.MessageConstant;
 import com.sky.constant.PasswordConstant;
 import com.sky.constant.StatusConstant;
-import com.sky.context.BaseContext;
 import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
 import com.sky.dto.EmployeePageQueryDTO;
@@ -22,8 +21,6 @@ import com.sky.service.EmployeeService;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 
 @Service
 public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> implements EmployeeService {
@@ -77,20 +74,9 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
      */
     @Override
     public Integer saveEmployee(EmployeeDTO employeeDTO) {
-        System.err.println(Thread.currentThread().getId() + " - EmployeeServiceImpl saveEmployee");
-
         Employee employee = BeanUtil.copyProperties(employeeDTO, Employee.class);
-
-        // 设置其他字段
-        employee.setStatus(StatusConstant.ENABLE);
+        employee.setStatus(StatusConstant.ENABLE);  // 默认启用
         employee.setPassword(DigestUtils.sha256Hex(PasswordConstant.DEFAULT_PASSWORD)); // 默认密码
-        employee.setCreateTime(LocalDateTime.now());
-        employee.setUpdateTime(LocalDateTime.now());
-
-        // 创建用户，使用当前登录用户的ID
-        employee.setCreateUser(BaseContext.getCurrentId());
-        employee.setUpdateUser(BaseContext.getCurrentId());
-
         return employeeMapper.insert(employee);
     }
 
@@ -100,7 +86,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
      * @return
      */
     @Override
-    public PageResult<Employee> queryEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO) {
+    public PageResult<Employee> getEmployeesPage(EmployeePageQueryDTO employeePageQueryDTO) {
         int page = employeePageQueryDTO.getPage();
         int pageSize = employeePageQueryDTO.getPageSize();
         String name = employeePageQueryDTO.getName();
@@ -136,6 +122,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
     public Employee getEmployeeById(Long id) {
         return employeeMapper.selectById(id);
     }
+
     /**
      * 编辑员工信息
      * @param employeeDTO
@@ -144,10 +131,6 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
     @Override
     public Integer editEmployee(EmployeeDTO employeeDTO) {
         Employee employee = BeanUtil.copyProperties(employeeDTO, Employee.class);
-        employee.setUpdateTime(LocalDateTime.now());
-        employee.setUpdateUser(BaseContext.getCurrentId());
         return employeeMapper.updateById(employee);
     }
-
-
 }
