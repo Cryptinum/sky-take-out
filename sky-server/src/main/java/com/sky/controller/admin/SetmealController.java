@@ -59,4 +59,12 @@ public class SetmealController {
         Integer success = setmealService.updateSetmealStatus(status, id);
         return Result.success(success);
     }
+
+    @PutMapping
+    @Operation(summary = "修改套餐", description = "提供修改套餐的功能")
+    public Result<Integer> editSetmeal(@RequestBody SetmealDTO setmealDTO) {
+        log.info("修改套餐: {}", setmealDTO);
+        Integer success = setmealService.editSetmeal(setmealDTO);
+        return Result.success(success);
+    }
 }

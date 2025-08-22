@@ -121,6 +121,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
 
     /**
      * 修改套餐状态
+     *
      * @param status
      * @param id
      * @return
@@ -130,6 +131,21 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         return setmealMapper.update(new LambdaUpdateWrapper<Setmeal>()
                 .eq(Setmeal::getId, id)
                 .set(Setmeal::getStatus, status));
+    }
+
+    @Override
+    public Integer editSetmeal(SetmealDTO setmealDTO) {
+        Setmeal setmeal = BeanUtil.copyProperties(setmealDTO, Setmeal.class);
+        Long setmealId = setmeal.getId();
+        int success = setmealMapper.updateById(setmeal);
+        List<SetmealDish> setmealDishes = setmealDTO.getSetmealDishes();
+        setmealDishMapper.delete(new LambdaUpdateWrapper<SetmealDish>()
+                .in(SetmealDish::getSetmealId, setmealId));
+        if (setmealDishes != null && !setmealDishes.isEmpty()) {
+            setmealDishes.forEach(setmealDish -> setmealDish.setSetmealId(setmealId));
+            setmealDishMapper.insert(setmealDishes);
+        }
+        return success;
     }
 
 }

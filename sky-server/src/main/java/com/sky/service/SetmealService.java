@@ -43,4 +43,11 @@ public interface SetmealService extends IService<Setmeal> {
      * @return
      */
     Integer updateSetmealStatus(Integer status, Long id);
+
+    /**
+     * 修改套餐信息
+     * @param setmealDTO
+     * @return
+     */
+    Integer editSetmeal(SetmealDTO setmealDTO);
 }
