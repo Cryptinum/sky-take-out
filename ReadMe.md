@@ -675,7 +675,7 @@ public Result<String> uploadImage(MultipartFile file) {
 
 ### 实现
 
-见源码，该模块依赖 `Category` 模块， `DishFlavor` 模块， `Setmeal` 模块的部分实现。
+见源码，该模块依赖 `Category` 模块， `DishFlavor` 模块， `Setmeal` 模块的部分实现。注意多表联查需要添加 `@Transactional` 事务注解，确保单次请求的数据一致性。
 
 
 
@@ -683,3 +683,4 @@ public Result<String> uploadImage(MultipartFile file) {
 
 ## 套餐管理模块
 
+与菜品管理模块类似，套餐管理模块也需要实现新增、分页查询、删除、修改和起售停售等功能。具体内容见源码。

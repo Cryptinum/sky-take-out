@@ -6,11 +6,13 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.sky.constant.MessageConstant;
 import com.sky.dto.SetmealDTO;
 import com.sky.dto.SetmealPageQueryDTO;
 import com.sky.entity.Category;
 import com.sky.entity.Setmeal;
 import com.sky.entity.SetmealDish;
+import com.sky.exception.DeletionNotAllowedException;
 import com.sky.mapper.CategoryMapper;
 import com.sky.mapper.SetmealDishMapper;
 import com.sky.mapper.SetmealMapper;
@@ -57,6 +59,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         Category category = categoryMapper.selectById(categoryId);
         List<SetmealDish> setmealDishes = setmealDishMapper.selectList(new LambdaQueryWrapper<SetmealDish>()
                 .eq(SetmealDish::getSetmealId, setmealId));
+        // 设置实体类中没有的其他字段
         setmealVO.setCategoryName(category.getName());
         setmealVO.setSetmealDishes(setmealDishes);
         return setmealVO;
@@ -88,6 +91,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
             return PageResult.empty(p);
         }
         List<SetmealVO> setmealVOList = BeanUtil.copyToList(records, SetmealVO.class);
+        // 设置VO中无法从实体类直接获取的字段，分别从category和setmeal_dish表中查询
         for (SetmealVO setmealVO : setmealVOList) {
             setmealVO.setCategoryName(categoryMapper.selectById(setmealVO.getCategoryId()).getName());
             setmealVO.setSetmealDishes(setmealDishMapper.selectList(new LambdaQueryWrapper<SetmealDish>()
@@ -112,6 +116,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         if (setmealDishes == null || setmealDishes.isEmpty()) {
             return success;
         }
+        // 前端传来的DTO不含有setmealId，需要手动设置
         setmealDishes.forEach(setmealDish -> {
             setmealDish.setSetmealId(setmealId);
         });
@@ -133,14 +138,23 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
                 .set(Setmeal::getStatus, status));
     }
 
+    /**
+     * 修改套餐信息
+     *
+     * @param setmealDTO
+     * @return
+     */
     @Override
+    @Transactional
     public Integer editSetmeal(SetmealDTO setmealDTO) {
         Setmeal setmeal = BeanUtil.copyProperties(setmealDTO, Setmeal.class);
         Long setmealId = setmeal.getId();
         int success = setmealMapper.updateById(setmeal);
         List<SetmealDish> setmealDishes = setmealDTO.getSetmealDishes();
+        // 先删除原有的套餐菜品
         setmealDishMapper.delete(new LambdaUpdateWrapper<SetmealDish>()
                 .in(SetmealDish::getSetmealId, setmealId));
+        // 再插入新的套餐菜品
         if (setmealDishes != null && !setmealDishes.isEmpty()) {
             setmealDishes.forEach(setmealDish -> setmealDish.setSetmealId(setmealId));
             setmealDishMapper.insert(setmealDishes);
@@ -148,4 +162,28 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         return success;
     }
 
+    /**
+     * 批量删除套餐
+     *
+     * @param ids
+     * @return
+     */
+    @Override
+    @Transactional
+    public Integer deleteSetmeal(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new DeletionNotAllowedException(MessageConstant.ID_LIST_IS_NULL);
+        }
+        List<Setmeal> setmeals = setmealMapper.selectList(new LambdaQueryWrapper<Setmeal>()
+                .in(Setmeal::getId, ids)
+                .eq(Setmeal::getStatus, 0));
+        if (setmeals.size() != ids.size()) {
+            throw new DeletionNotAllowedException(MessageConstant.SETMEAL_ON_SALE);
+        }
+        // 删除套餐和套餐内菜品
+        int i = setmealMapper.deleteByIds(ids);
+        int j = setmealDishMapper.delete(new LambdaUpdateWrapper<SetmealDish>()
+                .in(SetmealDish::getSetmealId, ids));
+        return i + j;
+    }
 }

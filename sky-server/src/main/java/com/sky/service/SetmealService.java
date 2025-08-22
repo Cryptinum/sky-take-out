@@ -7,6 +7,8 @@ import com.sky.entity.Setmeal;
 import com.sky.result.PageResult;
 import com.sky.vo.SetmealVO;
 
+import java.util.List;
+
 /**
  *
  * @author FragrantXue
@@ -50,4 +52,11 @@ public interface SetmealService extends IService<Setmeal> {
      * @return
      */
     Integer editSetmeal(SetmealDTO setmealDTO);
+
+    /**
+     * 批量删除套餐
+     * @param ids
+     * @return
+     */
+    Integer deleteSetmeal(List<Long> ids);
 }

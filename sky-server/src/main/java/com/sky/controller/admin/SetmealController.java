@@ -13,6 +13,8 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  *
  * @author FragrantXue
@@ -65,6 +67,14 @@ public class SetmealController {
     public Result<Integer> editSetmeal(@RequestBody SetmealDTO setmealDTO) {
         log.info("修改套餐: {}", setmealDTO);
         Integer success = setmealService.editSetmeal(setmealDTO);
+        return Result.success(success);
+    }
+
+    @DeleteMapping
+    @Operation(summary = "批量删除套餐", description = "提供批量删除套餐的功能")
+    public Result<Integer> deleteSetmeal(@RequestParam List<Long> ids) {
+        log.info("批量删除套餐: ids: {}", ids);
+        Integer success = setmealService.deleteSetmeal(ids);
         return Result.success(success);
     }
 }
