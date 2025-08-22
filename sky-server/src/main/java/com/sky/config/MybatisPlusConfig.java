@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  *
- * @author Zhao Chonghao
+ * @author FragrantXue
  * Create by 2025.08.21 01:44
  */
 

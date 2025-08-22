@@ -2,7 +2,7 @@ package com.sky.config;
 
 /**
  *
- * @author Zhao Chonghao
+ * @author FragrantXue
  * Create by 2025.08.17 23:08
  */
 import io.swagger.v3.oas.models.OpenAPI;
