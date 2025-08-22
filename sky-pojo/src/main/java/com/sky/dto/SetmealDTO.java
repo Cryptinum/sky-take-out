@@ -1,7 +1,9 @@
 package com.sky.dto;
 
 import com.sky.entity.SetmealDish;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -10,27 +12,28 @@ import java.util.List;
 @Data
 public class SetmealDTO implements Serializable {
 
+    @Schema(description = "套餐ID", example = "1")
     private Long id;
 
-    //分类id
+    @Schema(description = "分类ID", example = "1")
     private Long categoryId;
 
-    //套餐名称
+    @Schema(description = "套餐名称", requiredMode = Schema.RequiredMode.REQUIRED, example = "豪华套餐")
     private String name;
 
-    //套餐价格
+    @Schema(description = "套餐价格", example = "99.99")
     private BigDecimal price;
 
-    //状态 0:停用 1:启用
+    @Schema(description = "套餐状态，0停用，1启用", example = "1")
     private Integer status;
 
-    //描述信息
+    @Schema(description = "套餐描述信息", example = "这是一个豪华套餐，包含多种美食")
     private String description;
 
-    //图片
+    @Schema(description = "套餐图片")
     private String image;
 
-    //套餐菜品关系
+    @Schema(description = "套餐菜品列表")
     private List<SetmealDish> setmealDishes = new ArrayList<>();
 
 }

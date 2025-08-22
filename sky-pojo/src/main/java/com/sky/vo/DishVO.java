@@ -50,5 +50,6 @@ public class DishVO implements Serializable {
     @Schema(description = "菜品口味列表")
     private List<DishFlavor> flavors = new ArrayList<>();
 
-    //private Integer copies;
+    @Schema(description = "菜品在套餐中的份数")
+    private Integer copies;
 }
