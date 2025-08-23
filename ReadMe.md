@@ -2,8 +2,6 @@
 
 本项目基于苍穹外卖项目，将各种依赖项升级至较新的版本，包括使用Spring Boot 3, MyBatis Plus 3.5, OpenAPI 3等。文档编写和注释均不详细，
 
-
-
 # Day 1
 
 ## 前端环境
@@ -412,9 +410,11 @@ public Integer editEmployee(EmployeeDTO employeeDTO) {
 
 ### 注意事项
 
-在删除分类前，需要先判断该分类下是否有菜品存在，如果有则不能删除。那么需要创建 `Dish` 和 `Setmeal` 对应的Mapper接口，然后再调用对应的 `selectCount` 方法查询对应分类id的菜品条数，如果不为0则不能删除。
+在删除分类前，需要先判断该分类下是否有菜品存在，如果有则不能删除。那么需要创建 `Dish` 和 `Setmeal` 对应的Mapper接口，然后再调用对应的
+`selectCount` 方法查询对应分类id的菜品条数，如果不为0则不能删除。
 
 ```java
+
 @Override
 public Integer deleteCategory(Long id) {
     // 如果分类关联有菜品那么就不能删除
@@ -432,10 +432,6 @@ public Integer deleteCategory(Long id) {
 }
 ```
 
-
-
-
-
 # Day 3
 
 ## 代码重构 - 公共字段填充
@@ -444,9 +440,12 @@ public Integer deleteCategory(Long id) {
 
 Mybatis Plus提供了公共字段填充的功能，可以通过实现 `MetaObjectHandler` 接口来实现自动填充公共字段。
 
-首先创建一个公共字段实体 `BaseEntity.java`，包含 `create_time`、`create_user`、`update_time` 和 `update_user`字段。针对不同的CRUD方法，需要在字段上标注 `@TableField(fill = FieldFill.XXX)` ， 然后让 `Employee` 和 `Category` 实体类继承 `BaseEntity` 类，同时删掉这两格实体类中对应的字段，防止配置覆盖。
+首先创建一个公共字段实体 `BaseEntity.java`，包含 `create_time`、`create_user`、`update_time` 和 `update_user`
+字段。针对不同的CRUD方法，需要在字段上标注 `@TableField(fill = FieldFill.XXX)` ， 然后让 `Employee` 和 `Category` 实体类继承
+`BaseEntity` 类，同时删掉这两格实体类中对应的字段，防止配置覆盖。
 
 ```java
+
 @Data
 public class BaseEntity implements Serializable {
 
@@ -470,9 +469,11 @@ public class BaseEntity implements Serializable {
 }
 ```
 
-然后创建一个公共字段填充器 `BaseEntityMetaObjectHandler.java` 实现 `MetaObjectHandler` 接口，重写 `insertFill` 和 `updateFill` 方法。
+然后创建一个公共字段填充器 `BaseEntityMetaObjectHandler.java` 实现 `MetaObjectHandler` 接口，重写 `insertFill` 和
+`updateFill` 方法。
 
 ```java
+
 @Component
 @Slf4j
 public class BaseEntityMetaObjectHandler implements MetaObjectHandler {
@@ -483,7 +484,7 @@ public class BaseEntityMetaObjectHandler implements MetaObjectHandler {
         this.strictInsertFill(metaObject, "createUser", BaseContext::getCurrentId, Long.class);
         this.strictInsertFill(metaObject, "updateUser", BaseContext::getCurrentId, Long.class);
     }
-    
+
     @Override
     public void updateFill(MetaObject metaObject) {
         this.strictUpdateFill(metaObject, "updateTime", LocalDateTime::now, LocalDateTime.class);
@@ -506,6 +507,7 @@ public enum OperationType {
 ```
 
 ```java
+
 @Target(ElementType.METHOD) // 注解作用于方法
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AutoFill {
@@ -516,6 +518,7 @@ public @interface AutoFill {
 然后创建AOP切片类，用来拦截带有 `@AutoFill` 注解的方法，并在方法执行前后进行公共字段的填充。
 
 ```java
+
 @Aspect
 @Component
 @Slf4j
@@ -523,7 +526,8 @@ public class AutoFillAspect {
 
     // 定义切点，拦截所有 com.sky.mapper 包下二级目录和被 @AutoFill 注解标记的方法
     @Pointcut("execution(* com.sky.mapper.*.*(..)) && @annotation(com.sky.annotation.AutoFill)")
-    public void autoFillPointCut() {}
+    public void autoFillPointCut() {
+    }
 
     // 定义前置通知，在目标方法执行前执行
     @Before("autoFillPointCut()")
@@ -568,7 +572,7 @@ public class AutoFillAspect {
             try {
                 Method setUpdateTime = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_UPDATE_TIME, LocalDateTime.class);
                 Method setUpdateUser = entity.getClass().getDeclaredMethod(AutoFillConstant.SET_UPDATE_USER, Long.class);
-                
+
                 setUpdateTime.invoke(entity, now);
                 setUpdateUser.invoke(entity, currentId);
             } catch (Exception e) {
@@ -581,12 +585,12 @@ public class AutoFillAspect {
 
 最后在Service方法上添加 `@AutoFill` 注解，指定操作类型为 `INSERT` 或 `UPDATE`，删除原方法中的对应代码即可。
 
-
 ## 图片上传接口 `POST /admin/common/upload`
 
 ### 实现
 
-我们的实现是将图片保存在本地资源路径中，并返回图片的访问路径。前端页面可以通过该路径来展示图片。首先需要配置保存到的路径和访问的路径，这两个配置在Controller中分别用 `@Value` 注解自动注入为 `basePath` 和 `urlPrefix` 两个对象。
+我们的实现是将图片保存在本地资源路径中，并返回图片的访问路径。前端页面可以通过该路径来展示图片。首先需要配置保存到的路径和访问的路径，这两个配置在Controller中分别用
+`@Value` 注解自动注入为 `basePath` 和 `urlPrefix` 两个对象。
 
 ```yaml
 sky:
@@ -597,9 +601,11 @@ sky:
     url-prefix: /images/
 ```
 
-然后在 `CommonController.java` 中添加上传图片的接口方法 `uploadImage`，它接收一个 `MultipartFile` 类型的参数 `file`。方法中将文件保存到指定路径，并返回图片的访问路径。部分代码可以进一步封装为工具类，再次不再赘述，只展示一个可用的方法。
+然后在 `CommonController.java` 中添加上传图片的接口方法 `uploadImage`，它接收一个 `MultipartFile` 类型的参数 `file`
+。方法中将文件保存到指定路径，并返回图片的访问路径。部分代码可以进一步封装为工具类，再次不再赘述，只展示一个可用的方法。
 
 ```java
+
 @PostMapping("/upload")
 @Operation(summary = "上传图片", description = "提供图片上传功能")
 public Result<String> uploadImage(MultipartFile file) {
@@ -642,16 +648,20 @@ public Result<String> uploadImage(MultipartFile file) {
     }
 }
 ```
-接着在 `WebMvcConfiguration.java` 中添加静态资源映射 `registry.addResourceHandler(urlPrefix + "**").addResourceLocations("file:" + uploadPath);` ，将上传的图片目录映射到 `/images/` 路径下，这样前端就可以通过访问 `/images/xxx.jpg`来获取上传的图片，其中 `**` 代表扫描所有子目录和文件， `file:` 表示从本地文件系统中加载资源。
+
+接着在 `WebMvcConfiguration.java` 中添加静态资源映射
+`registry.addResourceHandler(urlPrefix + "**").addResourceLocations("file:" + uploadPath);` ，将上传的图片目录映射到
+`/images/` 路径下，这样前端就可以通过访问 `/images/xxx.jpg`来获取上传的图片，其中 `**` 代表扫描所有子目录和文件， `file:`
+表示从本地文件系统中加载资源。
 
 最后还需要在nginx配置中配置 `/images/` 的访问路径，本项目中配置到localhost的8080端口上即可。
-
 
 ## 菜品管理模块
 
 ### 新增菜品接口 `POST /admin/dish`
 
 业务规则
+
 1. 菜品名称必须唯一
 2. 菜品分类必须存在
 3. 新增菜品时可以选择口味
@@ -660,14 +670,15 @@ public Result<String> uploadImage(MultipartFile file) {
 ### 分页查询菜品接口 `GET /admin/dish/page`
 
 业务规则
+
 1. 根据页码展示菜品信息
 2. 每页展示10条数据
 3. 分页查询时可以根据需要输入菜品名称、菜品分类、菜品状态进行查询
 
-
 ### 删除菜品接口 `DELETE /admin/dish`
 
 业务规则
+
 1. 一次可以删除一个菜品，也可以批量删除
 2. 起售中的菜品不能删除
 3. 被套餐关联的菜品不能删除
@@ -675,12 +686,286 @@ public Result<String> uploadImage(MultipartFile file) {
 
 ### 实现
 
-见源码，该模块依赖 `Category` 模块， `DishFlavor` 模块， `Setmeal` 模块的部分实现。注意多表联查需要添加 `@Transactional` 事务注解，确保单次请求的数据一致性。
-
-
+见源码，该模块依赖 `Category` 模块， `DishFlavor` 模块， `Setmeal` 模块的部分实现。注意多表联查需要添加 `@Transactional`
+事务注解，确保单次请求的数据一致性。
 
 # Day 4
 
 ## 套餐管理模块
 
 与菜品管理模块类似，套餐管理模块也需要实现新增、分页查询、删除、修改和起售停售等功能。具体内容见源码。
+
+# Day 5
+
+## Redis入门
+
+### 简介
+
+Redis是一个**基于内存的**高性能**键值对（key-value）**数据库，相比之下，SQL是基于磁盘存储的关系型数据库，数据存储在二维表中。
+
+项目地址：https://github.com/redis/redis
+
+Windows版：https://github.com/tporadowski/redis
+
+### 安装
+
+安装方法基于Windows上运行的WSL2环境，总结自
+
+https://developer.aliyun.com/article/1672659
+
+https://blog.csdn.net/m0_47292890/article/details/148669149
+
+#### 检查Docker源
+
+如果出现如下问题，则考虑换源
+
+```terminaloutput
+Error response from daemon: Get "https://registry-1.docker.io/v2/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+```
+
+换源方法
+
+```bash
+sudo mkdir -p /etc/docker
+vim /etc/docker/daemon.json  
+```
+
+加入如下配置
+
+```json
+{
+  "registry-mirrors": [
+    "https://docker.registry.cyou",
+    "https://docker-cf.registry.cyou",
+    "https://dockercf.jsdelivr.fyi",
+    "https://docker.jsdelivr.fyi",
+    "https://dockertest.jsdelivr.fyi",
+    "https://mirror.aliyuncs.com",
+    "https://dockerproxy.com",
+    "https://mirror.baidubce.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.nju.edu.cn",
+    "https://docker.mirrors.sjtug.sjtu.edu.cn",
+    "https://docker.mirrors.ustc.edu.cn",
+    "https://mirror.iscas.ac.cn",
+    "https://docker.rainbond.cc",
+    "https://do.nark.eu.org",
+    "https://dc.j8.work",
+    "https://dockerproxy.com",
+    "https://gst6rzl9.mirror.aliyuncs.com",
+    "https://registry.docker-cn.com",
+    "http://hub-mirror.c.163.com",
+    "http://mirrors.ustc.edu.cn/",
+    "https://mirrors.tuna.tsinghua.edu.cn/",
+    "http://mirrors.sohu.com/"
+  ],
+  "insecure-registries": [
+    "registry.docker-cn.com",
+    "docker.mirrors.ustc.edu.cn"
+  ],
+  "debug": true,
+  "experimental": false
+}
+```
+
+重新载入、重启Docker、验证生效
+
+```bash
+# 重新载入配置
+sudo systemctl daemon-reload
+
+# 重启Docker
+sudo systemctl restart docker
+
+# 验证配置是否生效
+docker info
+docker compose up -d
+```
+
+#### 拉取镜像
+
+```bash
+# 拉取指定版本镜像
+docker pull redis:8.2.1
+ 
+# 验证镜像
+docker images -a
+# 输出示例：
+# REPOSITORY   TAG       IMAGE ID       CREATED      SIZE
+# redis        8.2.1     9d1fe3a9a889   4 days ago   137MB
+```
+
+#### 添加配置
+
+首先创建目录
+
+```bash 
+mkdir -p ~/data/dockerData/redis/{conf,data,logs}  
+touch ~/data/dockerData/redis/conf/redis.config
+```
+
+创建配置
+
+```text
+# Redis服务器配置 
+
+# 绑定IP地址
+#解除本地限制 注释bind 127.0.0.1  
+#bind 127.0.0.1  
+
+# 服务器端口号  
+port 6379 
+
+# 配置密码，不要可以删掉
+requirepass testpassword
+
+# 关闭保护模式，允许外部网络访问
+protected-mode no
+
+
+# 这个配置不要和docker -d 命令 冲突
+# 服务器运行模式，Redis以守护进程方式运行,默认为no，改为yes意为以守护进程方式启动，可后台运行，除非kill进程，改为yes会使配置文件方式启动redis失败，如果后面redis启动失败，就将这个注释掉
+daemonize no
+
+# 当Redis以守护进程方式运行时，Redis默认会把pid写入/var/run/redis.pid文件，可以通过pidfile指定(自定义)
+#pidfile /data/dockerData/redis/run/redis6379.pid  
+
+# 默认为no，redis持久化，可以改为yes
+appendonly yes
+
+
+# 当客户端闲置多长时间后关闭连接，如果指定为0，表示关闭该功能
+timeout 60
+# 服务器系统默认配置参数影响 Redis 的应用
+maxclients 10000
+tcp-keepalive 300
+
+# 指定在多长时间内，有多少次更新操作，就将数据同步到数据文件，可以多个条件配合（分别表示900秒（15分钟）内有1个更改，300秒（5分钟）内有10个更改以及60秒内有10000个更改）
+save 900 1
+save 300 10
+save 60 10000
+
+# 按需求调整 Redis 线程数
+tcp-backlog 511
+
+
+# 设置数据库数量，这里设置为16个数据库  
+databases 16
+
+
+# 启用 AOF, AOF常规配置
+appendonly yes
+appendfsync everysec
+no-appendfsync-on-rewrite no
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+
+
+# 慢查询阈值
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+
+
+# 是否记录系统日志，默认为yes  
+syslog-enabled yes  
+
+# 指定日志记录级别，Redis总共支持四个级别：debug、verbose、notice、warning，默认为verbose
+loglevel notice
+
+# 日志输出文件，默认为stdout，也可以指定文件路径  
+logfile stdout
+
+# 日志文件
+#logfile /var/log/redis/redis-server.log
+
+
+# 系统内存调优参数   
+# 按需求设置
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
+list-max-ziplist-entries 512
+list-max-ziplist-value 64
+set-max-intset-entries 512
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
+```
+
+#### 启动容器
+
+```bash
+docker run \
+  -p 6379:6379 \
+  --name redis \
+  -v ~/data/dockerData/redis/conf/redis.config:/etc/redis/redis.conf \
+  -v ~/data/dockerData/redis/data:/data \
+  -v ~/data/dockerData/redis/logs:/logs \
+  -d \
+  redis:8.2.1 \
+  redis-server /etc/redis/redis.conf
+```
+
+| 参数	              | 作用             |
+|:-----------------|----------------|
+| -d	              | 后台运行           |
+| --privileged	    | 赋予容器特权模式       |
+| -p	              | 端口映射           |
+| -v               | 	卷挂载（配置/数据/日志） |
+| --restart=always | 	自动重启策略        |
+
+
+#### 验证与调试
+
+查看容器状态
+```bash
+# 查看运行状态
+docker ps -a
+
+# 输出示例
+# CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS          PORTS                                         NAMES
+# 911bdeb32b36   redis:latest   "docker-entrypoint.s…"   13 hours ago   Up 32 minutes   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   redis
+```
+
+WSL内测试客户端
+```bash
+# 启动容器
+docker start redis
+
+# 进入容器
+docker exec -it redis bash
+ 
+# 启动客户端
+redis-cli
+ 
+# 认证操作
+127.0.0.1:6379> AUTH yourPassWord
+OK
+ 
+# 测试写入
+127.0.0.1:6379> SET test_key "Hello Redis"
+OK
+ 
+# 验证读取
+127.0.0.1:6379> GET test_key
+"Hello Redis"
+
+# 删除测试键
+127.0.0.1:6379> DEL test_key
+(integer) 1
+```
+
+
+#### Windows内测试客户端
+
+可以使用Another Redis Desktop Manager图形化程序或命令行程序进行连接
+
+Another Redis Desktop Manager下载地址：
+https://github.com/qishibo/AnotherRedisDesktopManager
+
+Redis Windows Version下载地址（>=Redis 6.0.20）：
+https://github.com/redis-windows/redis-windows
+
+Redis for Windows下载地址（Redis 4.0.14/5.0.14）：
+https://github.com/redis-windows/redis-windows
+
+将压缩包解压到任意目录下，然后将该目录添加到系统环境变量Path中，打开新的命令行窗口，输入 `redis-cli` 即可，使用方法与在Linux上相同。
+
