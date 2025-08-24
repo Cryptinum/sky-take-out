@@ -1,6 +1,6 @@
 # 项目说明
 
-本项目基于苍穹外卖项目，将各种依赖项升级至较新的版本，包括使用Spring Boot 3, MyBatis Plus 3.5, OpenAPI 3等。文档编写和注释均不详细，
+本项目基于苍穹外卖项目，将各种依赖项升级至较新的版本，包括使用Spring Boot 3, MyBatis Plus 3.5, OpenAPI 3等。
 
 # Day 1
 
@@ -303,7 +303,7 @@ Boot的每个请求都是在独立的线程中处理的，所以可以使用Thre
 
 为证明这一点，在拦截器、控制层和服务层的对应方法中都打印当前线程ID和方法名称，控制台的输出如下
 
-```
+```text
 70 - JwtTokenAdminInterceptor preHandle
 70 - EmployeeController saveEmployee
 70 - EmployeeServiceImpl saveEmployee
@@ -442,7 +442,7 @@ Mybatis Plus提供了公共字段填充的功能，可以通过实现 `MetaObjec
 
 首先创建一个公共字段实体 `BaseEntity.java`，包含 `create_time`、`create_user`、`update_time` 和 `update_user`
 字段。针对不同的CRUD方法，需要在字段上标注 `@TableField(fill = FieldFill.XXX)` ， 然后让 `Employee` 和 `Category` 实体类继承
-`BaseEntity` 类，同时删掉这两格实体类中对应的字段，防止配置覆盖。
+`BaseEntity` 类，同时删掉这两个实体类中对应的字段，防止配置覆盖，将来处理其他有这四个字段的数据表对应的实体类时，也按同样方式进行处理。
 
 ```java
 
@@ -589,7 +589,7 @@ public class AutoFillAspect {
 
 ### 实现
 
-我们的实现是将图片保存在本地资源路径中，并返回图片的访问路径。前端页面可以通过该路径来展示图片。首先需要配置保存到的路径和访问的路径，这两个配置在Controller中分别用
+与教程的实现有所区别，该项目的实现是将图片保存在本地资源路径中，并返回图片的访问路径。前端页面可以通过该路径来展示图片。首先需要配置保存到的路径和访问的路径，这两个配置在Controller中分别用
 `@Value` 注解自动注入为 `basePath` 和 `urlPrefix` 两个对象。
 
 ```yaml
@@ -703,9 +703,13 @@ public Result<String> uploadImage(MultipartFile file) {
 
 Redis是一个**基于内存的**高性能**键值对（key-value）**数据库，相比之下，SQL是基于磁盘存储的关系型数据库，数据存储在二维表中。
 
-项目地址：https://github.com/redis/redis
+项目地址：
 
-Windows版：https://github.com/tporadowski/redis
+https://github.com/redis/redis
+
+Windows版：
+
+https://github.com/tporadowski/redis
 
 ### 安装
 
@@ -912,10 +916,10 @@ docker run \
 | -v               | 	卷挂载（配置/数据/日志） |
 | --restart=always | 	自动重启策略        |
 
-
 #### 验证与调试
 
 查看容器状态
+
 ```bash
 # 查看运行状态
 docker ps -a
@@ -926,6 +930,7 @@ docker ps -a
 ```
 
 WSL内测试客户端
+
 ```bash
 # 启动容器
 docker start redis
@@ -953,19 +958,150 @@ OK
 (integer) 1
 ```
 
-
 #### Windows内测试客户端
 
 可以使用Another Redis Desktop Manager图形化程序或命令行程序进行连接
 
 Another Redis Desktop Manager下载地址：
+
 https://github.com/qishibo/AnotherRedisDesktopManager
 
 Redis Windows Version下载地址（>=Redis 6.0.20）：
+
 https://github.com/redis-windows/redis-windows
 
 Redis for Windows下载地址（Redis 4.0.14/5.0.14）：
+
 https://github.com/redis-windows/redis-windows
 
 将压缩包解压到任意目录下，然后将该目录添加到系统环境变量Path中，打开新的命令行窗口，输入 `redis-cli` 即可，使用方法与在Linux上相同。
+
+### 常用数据类型
+
+Redis存储的时key-value对，key是字符串类型，value可以是多种数据类型，常用的有5种。
+
+#### 字符串 string
+
+可以是字符串，也可以是数字（整数或浮点数），Redis可以将其作为字符串存储的同时，还能对它们执行原子性的增减操作。
+类比 `String` ，或是 `Integer` 、 `AtomicLong` 等的包装类。
+
+| 指令                               | 说明                                                  |
+|:---------------------------------|-----------------------------------------------------|
+| `SET key value`                  | 设置一个键值对。如果 `key` 已存在，则覆盖                            |
+| `GET key`                        | 获取 `key` 对应的 `value`                                |
+| `SETEX key seconds value`        | 设置一个带过期时间的键值对（EX = EXpire）                          |
+| `SETNX key value`                | 设置一个键值对，仅当 `key` 不存在时才成功（NX = Not eXists）常用于实现分布式锁  |
+| `INCR key`                       | 将 `key` 对应的数字 `value` 原子性加1。如果 `key` 不存在，则先初始化为0再加1 |
+| `DECR key`                       | 将 `key` 对应的数字 `value` 原子性减1                         |
+| `INCRBY key increment`           | 将 `key` 对应的数字 `value` 原子性地增加指定的整数                   |
+| `MSET key value [key value ...]` | 一次性设置多个键值对                                          |
+| `MGET key [key ...]`             | 一次性获取多个 `key` 的 `value`                             |
+
+应用：
+
+1. 缓存: 缓存用户信息、配置信息、页面片段、JSON字符串等。
+2. 计数器: 网站访问量、文章点赞数、用户在线数等。
+3. 分布式锁: 利用 `SETNX` 的特性，确保同一时间只有一个客户端能持有锁。
+4. 共享Session: 存储Web应用的用户会话信息。
+
+#### 散列 hash
+
+字段（field）和值（value）的映射表，类似Java中的 `HashMap<String, String>` ，每个Redis的key对应一个Map实例。
+
+| 指令                                       | 说明                       |
+|:-----------------------------------------|--------------------------|
+| `HSET key field value [field value ...]` | 将哈希表中一个或多个字段的值设为 `value` |
+| `HGET key field`                         | 获取哈希表中指定字段的值             |
+| `HMGET key field [field ...]`            | 获取哈希表中一个或多个字段的值          |
+| `HGETALL key`                            | 获取哈希表中所有的字段和值            |
+| `HDEL key field [field ...]`             | 删除哈希表中一个或多个字段            |
+| `HKEYS key`                              | 获取哈希表中所有的字段              |
+| `HVALS key`                              | 获取哈希表中所有的值               |
+| `HINCRBY key field increment`            | 为哈希表中指定字段的整数值增加指定的增量     |
+
+应用：
+
+1. 对象缓存: 存储结构化数据，如用户信息、商品信息等。例如，一个 `user:123` 的key，其内部可以有 `name` , `age` , `email`
+   等多个字段。相比于为每个字段都创建一个key，使用hash更节省内存和键空间。
+2. 购物车: 用用户ID作为key，商品ID作为 `field` ，商品数量作为 `value` 。
+
+#### 列表 list
+
+字符串列表，按照插入顺序排序，可以在头部或尾部添加元素，类比Java中的 `LinkedList` 或者 `Deque` 。
+
+| 指令                                  | 说明                                     |
+|:------------------------------------|----------------------------------------|
+| `LPUSH key element [element ...]`   | 从列表头部插入一个或多个元素                         |
+| `RPUSH key element [element ...]`   | 从列表尾部插入一个或多个元素                         |
+| `LPOP key [count]`                  | 从列表头部弹出一个或多个元素，如果是最后一个元素，则删除列表         |
+| `RPOP key [count]`                  | 从列表尾部弹出一个或多个元素，如果是最后一个元素，则删除列表         |
+| `BLPOP/BRPOP key [key ...] timeout` | LPOP/RPOP 的阻塞版本。如果列表为空，它会阻塞连接直到有新元素或超时 |
+| `LRANGE key start stop`             | 获取列表中指定范围的元素（类似 `subList`）             |
+| `LLEN key`                          | 获取列表的长度                                |
+
+应用：
+
+1. 消息队列/任务队列: 利用 `LPUSH` 生产消息，`BRPOP` 消费消息，实现简单高效的消息队列。
+2. 时间线 (Timeline): 微博/朋友圈的关注列表，按时间顺序存储，`LPUSH` 发布新动态，`LRANGE` 分页查看。
+3. 栈和队列: `LPUSH` + `LPOP` 实现栈 (FILO)，`LPUSH` + `RPOP` 实现队列 (FIFO)。
+
+#### 集合 set
+
+无序集合，其中每个元素在set中都是唯一的，类似Java中的 `HashSet<String>` 。
+
+| 指令                             | 说明             |
+|:-------------------------------|----------------|
+| `SADD key member [member ...]` | 向集合添加一个或多个元素   |
+| `SREM key member [member ...]` | 从集合中删除一个或多个元素  |
+| `SPOP key [count]`             | 随机弹出一个或多个元素    |
+| `SMEMBERS key`                 | 获取集合中的所有元素     |
+| `SISMEMBER key member`         | 判断元素是否是集合的成员   |
+| `SCARD key`                    | 获取集合的基数 (元素数量) |
+| `SUNION key [key ...]`         | 获取多个集合的并集      |
+| `SINTER key [key ...]`         | 获取多个集合的交集      |
+| `SDIFF key [key ...]`          | 获取多个集合的差集      |
+
+应用：
+
+1. 标签系统: `SADD post:100 tag:java tag:redis`，为一篇文章添加标签。
+2. 共同好友/关注: 使用 `SINTER` 计算两个用户的共同好友。
+3. 抽奖系统: 存储所有参与抽奖的用户ID，使用 `SPOP` 或 `SRANDMEMBER` 随机抽取中奖用户。
+4. 点赞/投票: 一个内容的点赞用户集合，天然去重。
+
+#### 有序集合 sorted set (zset)
+
+有序集合，同时每个元素会关联一个 `double` 类型的分数 (score)，集合中的元素按分数从小到大排序，类似Java中 `LinkedHashSet` 和
+`TreeMap<Double, String>` 的结合，既保证的元素的唯一性，又能根据分数进行高效的排序和范围查找。
+
+| 指令                                                              | 说明                          |
+|:----------------------------------------------------------------|-----------------------------|
+| `ZADD key [NX\|XX] [CH] [INCR] score member [score member ...]` | 向有序集合添加一个或多个成员，或者更新已存在成员的分数 |
+| `ZREM key member [member ...]`                                  | 移除有序集合中的一个或多个成员             |
+| `ZRANGE key start stop [WITHSCORES]`                            | 按分数从低到高返回指定排名范围的成员          |
+| `ZREVRANGE key start stop [WITHSCORES]`                         | 按分数从高到低返回指定排名范围的成员          |
+| `ZRANGEBYSCORE key min max [WITHSCORES]`                        | 按分数范围返回成员                   |
+| `ZSCORE key member`                                             | 返回指定成员的分数                   |
+| `ZCARD key`                                                     | 获取有序集合的成员数量                 |
+| `ZINCRBY key increment member`                                  | 增加指定成员的分数                   |
+
+应用：
+
+1. 排行榜: 游戏积分榜、热搜榜、销售排行榜等。`ZREVRANGE` 可以轻松获取 Top-N 列表。
+2. 带权重的任务队列: 分数作为优先级，分数越高的任务越先处理。
+3. 范围查找: 例如查找某个价格区间或分数区间的商品/用户。
+
+## 在Java中操作Redis
+
+### 准备工作
+
+首先引入依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+```
+
+
 
