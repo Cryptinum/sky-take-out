@@ -262,6 +262,23 @@ public static Claims parseJWT(String secretKey, String token) {
 </configuration>
 ```
 
+### 关闭各种横幅logo并启用MyBatis日志
+
+在本项目中，通过配置yaml，Spring和Mybatis Plus的横幅logo都可以关闭，也可以开启Mybatis的SQL日志。
+
+```yaml
+spring:
+  main:
+    banner-mode: "off"
+mybatis-plus:
+  global-config:
+    banner: false
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+```
+
+Pagehelper的横幅logo需要配置Spring Boot服务选项，在修改选项-添加虚拟机选项中添加 `-Dpagehelper.banner=false` 选项即可。
+
 # Day 2
 
 ## 使用前的注意
@@ -1094,14 +1111,39 @@ Redis存储的时key-value对，key是字符串类型，value可以是多种数�
 
 ### 准备工作
 
-首先引入依赖
+引入依赖
 
 ```xml
+
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-data-redis</artifactId>
 </dependency>
 ```
 
+配置数据源
+
+```yaml
+spring:
+  redis:
+    host: localhost
+    port: 6379
+    password: password
+```
+
+编写配置类，创建 `RedisTemplate` 对象，然后将 `RedisTemplate` 注入到需要使用的类中即可。
+
+也可以直接注入Spring Data Redis已经封装好的 `StringRedisTemplate` ，它是 `RedisTemplate<String, String>`
+的简化版，专门用于操作字符串类型的key和value，测试时会更加方便。
+
+### 基本操作
+
+假设已经注入了一个Redis模板对象 `redis` ，那么通过 `redis.opsForXXX()` 方法获取不同数据类型的操作对象，然后调用对应的方法进行操作。
+
+注意如果自定义的Redis模板的值的序列化器为JSON的话，无法使用 `ops.increment()`
+方法对数字类型的字符串进行自增操作，因为JSON序列化后的值是带引号的字符串，无法被识别为数字。推荐针对不同的业务需求使用不同的Redis模板对象，例如此时就可以使用封装好的
+`StringRedisTemplate` 进行处理。
+
+具体示例见测试类。
 
 
