@@ -107,6 +107,12 @@ ipconfig /flushdns
 
 `/v3/api-docs`, `/swagger-ui.html`, `/doc.html` 等接口可以在浏览器中访问，查看接口文档。
 
+### Spring Boot 3整合Knife4j 4
+
+参阅：
+
+https://blog.csdn.net/zzm_0525/article/details/140256118
+
 ## 完善登录功能
 
 目前存在的问题是，员工表 `employee` 中的 `password` 字段是明文存储的，应该使用加密算法进行加密存储。
@@ -1145,5 +1151,17 @@ spring:
 `StringRedisTemplate` 进行处理。
 
 具体示例见测试类。
+
+## 更改营业状态 `PUT /admin/shop/{status}`
+
+通过修改营业状态为营业中或者打烊中，应当不仅能够影响前端页面的显示，还会影响小程序端用户下单的功能。而项目中约定了管理端发出的请求，统一使用
+`/admin` 前缀，而小程序端的统一使用 `/user` 前缀。那么按照查询营业状态的功能来分类，就需要实现两个查询接口，一个是
+`/admin/shop/status` ，另一个是 `/user/shop/status` 。
+
+
+
+
+
+
 
 

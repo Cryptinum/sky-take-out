@@ -61,11 +61,26 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
      */
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         log.info("开始设置静态资源映射...");
-        registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
-        registry.addResourceHandler("/swagger-ui.html").addResourceLocations("classpath:/META-INF/resources/");
-        registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
-        registry.addResourceHandler(urlPrefix + "**") // "**" 表示匹配该路径下的所有文件
-                .addResourceLocations("file:" + uploadPath); // "file:" 协议表示从文件系统中加载资源
+        registry.addResourceHandler(
+                "/",
+                "/js/**",
+                "/css/**",
+                "/img/**",
+                "/fonts/**",
+                "/index.html",
+                "/favicon.ico",
+                "/doc.html",
+                "/swagger-ui.html",
+                "/webjars/**",
+                "/swagger-resources/**",
+                "/v3/**",
+                urlPrefix + "**" // "**" 表示匹配该路径下的所有文件
+        ).addResourceLocations(
+                "classpath:/static/",
+                "classpath:/public/",
+                "classpath:/META-INF/resources/",
+                "file:" + uploadPath // "file:" 协议表示从文件系统中加载资源
+        ).setCachePeriod(0);
     }
 
     /**
