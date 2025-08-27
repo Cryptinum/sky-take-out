@@ -37,6 +37,7 @@
         <mybatis.spring>3.5.12</mybatis.spring>
         <lombok>1.18.38</lombok>
         <fastjson>1.2.76</fastjson>
+        <jackson>2.19.2</jackson>
         <commons.lang>2.6</commons.lang>
         <druid>1.2.27</druid>
         <pagehelper>2.1.1</pagehelper>
@@ -49,6 +50,7 @@
         <springdoc>2.8.9</springdoc>
         <spring>3.5.4</spring>
         <hutool>5.8.38</hutool>
+        <httpclient5>5.5</httpclient5>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -80,6 +82,12 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>fastjson</artifactId>
                 <version>${fastjson}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson}</version>
             </dependency>
 
             <dependency>
@@ -181,7 +189,7 @@
 
             <dependency>
                 <groupId>cn.hutool</groupId>
-                <artifactId>hutool-core</artifactId>
+                <artifactId>hutool-all</artifactId>
                 <version>${hutool}</version>
             </dependency>
 
@@ -201,6 +209,12 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>${httpclient5}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

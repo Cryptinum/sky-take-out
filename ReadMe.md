@@ -1158,8 +1158,163 @@ spring:
 `/admin` 前缀，而小程序端的统一使用 `/user` 前缀。那么按照查询营业状态的功能来分类，就需要实现两个查询接口，一个是
 `/admin/shop/status` ，另一个是 `/user/shop/status` 。
 
+# Day 6
 
+## HttpClient包
 
+HttpClient是Apache提供的一个功能强大的HTTP客户端库，支持通过编码的方式发送HTTP请求和处理HTTP响应，封装了底层的网络通信细节，简化了HTTP操作。本项目使用当前最新的HttpClient5进行开发。
+
+核心API包括：
+
+1. `HttpClient`：用于发送HTTP请求和接收响应的主要接口。
+2. `HttpClients`：用于创建 `HttpClient` 实例的工厂类。
+3. `ClosableHttpClient`： `HttpClient` 的可关闭版本，使用后需要调用 `close()` 方法释放资源。
+4. `HttpGet` 和 `HttpPost`：分别用于发送GET和POST请求
+5. `HttpResponse`：表示HTTP响应，包含状态码、响应头和响应体等信息。
+
+### 示例 - 发送一个GET请求
+
+首先需要通过 `HttpClients.createDefault()` 创建一个 `HttpClient` 实例，然后创建一个请求对象（如 `HttpGet` 或 `HttpPost`
+），最后调用 `execute()` 方法发送请求。
+
+```java
+public void testGET() {
+    // 1. 创建httpclient对象
+    try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+        // 2. 创建get请求对象
+        String url = "http://localhost:8080/user/shop/status";
+        HttpGet httpGet = new HttpGet(url);
+        System.out.println("执行请求: " + httpGet.getMethod() + " " + httpGet.getUri());
+
+        // 3. 发送请求
+        httpClient.execute(httpGet, response -> {
+            // 4. 获取响应实体
+            HttpEntity entity = response.getEntity();
+            System.out.println("响应状态: " + response.getCode());
+            System.out.println("响应内容长度: " + entity.getContentLength());
+            System.out.println("响应内容: " + EntityUtils.toString(entity));
+            return null;
+        });
+    } catch (Exception e) {
+        log.error(e.getMessage());
+    }
+}
+```
+
+更简单地，也可以使用Hutool的HttpUtil工具类来发送请求
+
+```java
+public void testGETWithHutool() {
+    String url = "http://localhost:8080/user/shop/status";
+    String response = HttpUtil.get(url);
+    System.out.println("响应内容: " + response);
+}
+```
+
+### 示例 - 发送一个POST请求
+
+考虑带有请求体的POST请求，与发送GET请求类似，但是需要多一步设置响应体的步骤。
+
+```java
+public void testPOST() {
+    ObjectMapper mapper = new ObjectMapper();
+
+    // 1. 创建httpclient对象
+    try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+        // 2.1 构造JSON响应体
+        ObjectNode jsonNodes = mapper.createObjectNode();
+        jsonNodes.put("username", "admin");
+        jsonNodes.put("password", "123456");
+        String json = new ObjectMapper().writeValueAsString(jsonNodes);
+        StringEntity entity = new StringEntity(json, ContentType.APPLICATION_JSON);
+
+        // 2.2 设创建post请求对象，设置响应体
+        String url = "http://localhost:8080/admin/employee/login";
+        HttpPost httpPost = new HttpPost(url);
+        httpPost.setEntity(entity);
+        System.out.println("执行请求: " + httpPost.getMethod() + " " + httpPost.getUri());
+
+        // 3. 发送请求
+        httpClient.execute(httpPost, response -> {
+            System.out.println(EntityUtils.toString(response.getEntity()));
+            return null;
+        });
+    } catch (Exception e) {
+        log.error(e.getMessage());
+    }
+}
+```
+
+类似地，Hutool也可以简化POST请求的发送：
+
+```java
+public void testPOSTWithHutool() {
+    String url = "http://localhost:8080/admin/employee/login";
+    String json = "{\"username\":\"admin\",\"password\":\"123456\"}";
+    String response = HttpRequest.post(url)
+            .body(json)  // 设置请求体
+            .contentType(ContentType.APPLICATION_JSON.toString())  // 设置Content-Type
+            .execute()
+            .body();  // 获取响应体
+
+    // String response = HttpUtil.post(url, json);  // 更简单的写法
+    System.out.println("响应内容: " + response);
+}
+```
+
+## 微信小程序开发入门
+
+### 微信小程序的目录结构
+
+小程序包含一个描述整体程序的 `app` 和多个描述各自页面的 `page` 组成。每个 `app` 和 `page` 都有自己的逻辑文件、配置文件和样式文件。
+
+| 文件名      | 是否必需 | 作用                                |
+|:---------|:-----|:----------------------------------|
+| app.js   | 是    | 小程序逻辑文件，负责处理小程序的生命周期、全局数据等        |
+| app.json | 是    | 小程序公共配置文件，定义小程序的页面路径、窗口表现、网络超时时间等 |
+| app.wxss | 否    | 小程序公共样式表文件，定义小程序的全局样式，相当于CSS样式    |
+
+对于每个 `page` ，都包含以下四个文件：
+
+| 文件名       | 是否必需 | 作用                        |
+|:----------|:-----|:--------------------------|
+| page.js   | 是    | 页面逻辑文件，处理页面的生命周期、事件等      |
+| page.wxml | 是    | 页面结构文件，定义页面的布局和内容，相当于HTML |
+| page.json | 否    | 页面配置文件，定义页面的窗口表现、导航栏等     |
+| page.wxss | 否    | 页面样式文件，定义页面的样式，相当于CSS样式   |
+
+## 微信登录功能
+
+### 登录流程
+
+微信官方文档中提供了完整的登录流程说明：
+
+https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/login.html
+
+在小程序端，调用 `wx.login()` 接口获取临时登录凭证（授权码） `code` ，然后将 `code` 通过 `wx.request()`
+发送到后端开发者服务器，这是一个封装的异步请求，在uni-app中一般使用luch-request。后端服务器调用微信接口服务，传递 `appid` 、
+`secret` 和 `code` 三个参数，获取用户的唯一标识 `openid` 和会话密钥 `session_key` 。后端服务器可以将这两个值存储到数据库、缓存中，生成
+**自定义登录态**并产生一个关联两个值的token（如JWT）返回给小程序端，作为后续请求的身份凭证。小程序端收到token后，存储到本地（如
+`localStorage` ），每次通过 `wx.request()` 发起后续请求时都携带这个token作为自定义登录态的凭证，后端服务器查询 `openid` 和
+`session_key` 来验证token，以识别用户身份。如果用户身份被确认，那么就可以返回用户的个人信息等正常的业务数据。
+
+### 手动获得标识
+
+重新编译项目，弹出需要授权登录的信息后，打开控制台复制 `code` 的值，然后通过Postman发送如下GET请求，即可获取 `openid` 和
+`session_key` 。注意请求返回的标识的有效期为5分钟，过期后需要重新获取。
+
+```
+https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=JSCODE&grant_type=authorization_code
+```
+
+### 代码实现
+
+由于微信已经提供了完整的登录流程，后端只需要实现一个接口来接收小程序端传递过来的 `code` ，然后调用微信接口服务获取
+`openid` 和 `session_key` 即可。如果是新用户，则需要注册并将用户身份信息保存到数据库中。具体实现可以使用HttpClient包。
+
+## 商品浏览功能
+
+见源码。
 
 
 
