@@ -21,7 +21,7 @@ import java.util.List;
  * @email Create by 2025.08.22 14:09
  */
 
-@RestController
+@RestController("adminSetmealController")
 @RequestMapping("/admin/setmeal")
 @Slf4j
 @Tag(name = "套餐接口", description = "提供套餐接口的一系列功能")

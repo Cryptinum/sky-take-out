@@ -10,19 +10,23 @@ import com.sky.constant.MessageConstant;
 import com.sky.dto.SetmealDTO;
 import com.sky.dto.SetmealPageQueryDTO;
 import com.sky.entity.Category;
+import com.sky.entity.Dish;
 import com.sky.entity.Setmeal;
 import com.sky.entity.SetmealDish;
 import com.sky.exception.DeletionNotAllowedException;
 import com.sky.mapper.CategoryMapper;
+import com.sky.mapper.DishMapper;
 import com.sky.mapper.SetmealDishMapper;
 import com.sky.mapper.SetmealMapper;
 import com.sky.result.PageResult;
 import com.sky.service.SetmealService;
+import com.sky.vo.DishItemVO;
 import com.sky.vo.SetmealVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -42,6 +46,9 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
 
     @Autowired
     private CategoryMapper categoryMapper;
+
+    @Autowired
+    private DishMapper dishMapper;
 
     /**
      * 根据套餐ID查询套餐信息
@@ -185,5 +192,32 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         int j = setmealDishMapper.delete(new LambdaUpdateWrapper<SetmealDish>()
                 .in(SetmealDish::getSetmealId, ids));
         return i + j;
+    }
+
+    @Override
+    public List<Setmeal> getSetmealByCategoryId(Long categoryId) {
+        return setmealMapper.selectList(new LambdaQueryWrapper<Setmeal>()
+                .eq(Setmeal::getCategoryId, categoryId));
+    }
+
+    @Override
+    public List<DishItemVO> getDishesBySetmealId(Long id) {
+        List<SetmealDish> setmealDishes = setmealDishMapper.selectList(new LambdaQueryWrapper<SetmealDish>()
+                .eq(SetmealDish::getSetmealId, id));
+        if (setmealDishes == null || setmealDishes.isEmpty()) {
+            return List.of();
+        }
+
+        List<DishItemVO> dishItemVOS = new ArrayList<>();
+        for (SetmealDish setmealDish : setmealDishes) {
+            Dish dish = dishMapper.selectById(setmealDish.getDishId());
+            if (dish != null) {
+                DishItemVO dishItemVO = BeanUtil.copyProperties(dish, DishItemVO.class);
+                dishItemVO.setDescription(dishItemVO.getDescription());
+                dishItemVO.setImage(dishItemVO.getImage());
+                dishItemVOS.add(dishItemVO);
+            }
+        }
+        return dishItemVOS;
     }
 }

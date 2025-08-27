@@ -21,7 +21,7 @@ import java.util.List;
  * Create by 2025.08.21 15:28
  */
 
-@RestController
+@RestController("adminCategoryController")
 @RequestMapping("/admin/category")
 @Slf4j
 @Tag(name = "分类管理接口", description = "提供分类管理的一系列功能")
@@ -32,7 +32,7 @@ public class CategoryController {
 
     @GetMapping("/list")
     @Operation(summary = "根据类型查询分类", description = "根据分类类型和名称查询分类列表")
-    public Result<List<Category>> getCategoryByType(@RequestParam Integer type) {
+    public Result<List<Category>> getCategoryByType(Integer type) {
         log.info("根据类型查询分类: type: {}", type);
         List<Category> list = categoryService.getCategoryByType(type);
         return Result.success(list);

@@ -33,6 +33,13 @@ public interface DishService extends IService<Dish> {
     List<Dish> getDishByCategory(Long categoryId);
 
     /**
+     * 用户端根据分类ID查询菜品信息
+     * @param categoryId
+     * @return
+     */
+    List<DishVO> getDishByCategoryUser(Long categoryId);
+
+    /**
      * 分页查询菜品信息
      * @param dishPageQueryDTO
      * @return

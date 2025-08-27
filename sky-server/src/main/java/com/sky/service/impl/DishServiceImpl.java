@@ -71,6 +71,27 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     }
 
     /**
+     * 用户端根据分类ID查询菜品信息
+     *
+     * @param categoryId
+     * @return
+     */
+    @Override
+    public List<DishVO> getDishByCategoryUser(Long categoryId) {
+        List<Dish> dishes = dishMapper.selectList(new LambdaQueryWrapper<Dish>().eq(Dish::getCategoryId, categoryId));
+        Category category = categoryMapper.selectById(categoryId);
+        List<DishVO> dishVOS = BeanUtil.copyToList(dishes, DishVO.class);
+        // 获取菜品所属的口味信息和类别名称
+        for (DishVO dishVO : dishVOS) {
+            List<DishFlavor> dishFlavors = dishFlavorMapper.selectList(new LambdaQueryWrapper<DishFlavor>()
+                    .eq(DishFlavor::getDishId, dishVO.getId()));
+            dishVO.setCategoryName(category.getName());
+            dishVO.setFlavors(dishFlavors);
+        }
+        return dishVOS;
+    }
+
+    /**
      * 根据分类ID查询菜品信息
      *
      * @param categoryId

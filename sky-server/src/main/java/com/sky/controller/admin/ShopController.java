@@ -14,11 +14,11 @@ import org.springframework.web.bind.annotation.*;
  * Create by 2025.08.26 17:45
  */
 
-@RestController
+@RestController("adminShopController")
 @RequestMapping("/admin/shop")
 @Slf4j
 @Tag(name = "店铺接口", description = "店铺接口信息相关接口")
-public class AdminShopController {
+public class ShopController {
 
     @Autowired
     private ShopService shopService;

@@ -1310,11 +1310,17 @@ https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=J
 ### 代码实现
 
 由于微信已经提供了完整的登录流程，后端只需要实现一个接口来接收小程序端传递过来的 `code` ，然后调用微信接口服务获取
-`openid` 和 `session_key` 即可。如果是新用户，则需要注册并将用户身份信息保存到数据库中。具体实现可以使用HttpClient包。
+`openid` 和 `session_key` 即可。如果是新用户，则需要注册并将用户身份信息保存到数据库中。具体实现可以使用HttpClient包。具体来说分为如下几步：
+
+1. 使用HttpClient包调用微信接口服务获取 `openid`
+2. `openid` 判空，如果为空则抛出异常
+3. 根据 `openid` 查询用户信息，如果不存在则注册新用户
+4. 创建JWT令牌并赋给新的 `UserLoginVO` 对象，返回结果
+5. 创建拦截器，验证用户身份
 
 ## 商品浏览功能
 
-见源码。
+见源码，涉及到查询分类、根据分类id查询菜品、根据分类id查询套餐以及根据套餐id查询菜品四个接口。
 
 
 

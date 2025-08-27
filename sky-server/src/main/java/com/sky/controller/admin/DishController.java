@@ -22,7 +22,7 @@ import java.util.List;
  * Create by 2025.08.21 23:54
  */
 
-@RestController
+@RestController("adminDishController")
 @RequestMapping("/admin/dish")
 @Slf4j
 @Tag(name = "菜品接口", description = "提供菜品接口的一系列功能")
