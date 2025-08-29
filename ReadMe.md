@@ -1117,13 +1117,17 @@ Redis存储的时key-value对，key是字符串类型，value可以是多种数�
 
 ### 准备工作
 
-引入依赖
+引入依赖，其中 `jackson-datatype-jsr310` 是为了支持Java 8的时间类型序列化和反序列化的封装模块。
 
 ```xml
 
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.fasterxml.jackson.datatype</groupId>
+    <artifactId>jackson-datatype-jsr310</artifactId>
 </dependency>
 ```
 
@@ -1137,7 +1141,9 @@ spring:
     password: password
 ```
 
-编写配置类，创建 `RedisTemplate` 对象，然后将 `RedisTemplate` 注入到需要使用的类中即可。
+编写配置类 `RedisConfiguration` ，创建 `RedisTemplate` 对象，然后将 `RedisTemplate` 注入到需要使用的类中即可。需要注意如果使用
+`Jackson2JsonRedisSerializer` 来序列化和反序列化，还需要自定义一个 `ObjectMapper` 用来正确地识别Java 8的时间类型。具体见
+`RedisConfiguration.java` 。
 
 也可以直接注入Spring Data Redis已经封装好的 `StringRedisTemplate` ，它是 `RedisTemplate<String, String>`
 的简化版，专门用于操作字符串类型的key和value，测试时会更加方便。
@@ -1322,7 +1328,78 @@ https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=J
 
 见源码，涉及到查询分类、根据分类id查询菜品、根据分类id查询套餐以及根据套餐id查询菜品四个接口。
 
+# Day 7
 
+## 缓存菜品信息
+
+当很多用户同时浏览某个分类下的菜品时，如果每次都去数据库查询，势必会增加数据库的压力，影响系统的响应速度。为了解决这个问题，可以将热门分类下的菜品信息缓存到Redis中，当用户请求该分类的菜品时，后端服务先从Redis中获取，如果缓存命中则直接返回，否则再去数据库查询并将结果存入Redis。
+
+### Redis缓存逻辑设计
+
+#### 查询的业务逻辑
+
+由于小程序前端的逻辑是根据分类id查询菜品，当点击某个菜品分类时，前端展示分类下的所有菜品，因此可以将缓存的key设计为
+`dish_category_{categoryId}`
+，value为该分类下的菜品列表的JSON字符串，最好分层存储，例如添加key前缀 `sky:cache:dish_category:`
+。构造好key之后，先从Redis中查询分类数据，根据存入Redis的类型直接强转即可，Redis的序列化器可以自动序列化和反序列化。如果存在，那么直接返回查询到的数据，如果不存在，那么进入原始的SQL查询实现，最后将数据存入Redis，可以根据具体的业务现状设置过期时间。具体示例逻辑见
+`DishServiceImpl.java` 中的 `getDishByCategoryUser` 方法。
+
+```java
+
+@Override
+public List<DishVO> getDishByCategoryUser(Long categoryId) {
+    // 1. 构造redis中的key，规则为 dish_category_{categoryId}
+    String key = "dish_category_" + categoryId;
+
+    // 2. 先从redis当中查询分类数据
+    List<DishVO> dishVOList = (List<DishVO>) redisTemplate.opsForValue().get(key);
+
+    // 3. 如果存在，则直接返回
+    if (dishVOList != null && !dishVOList.isEmpty()) {
+        log.info("从Redis缓存中查询到数据: {}", key);
+        return dishVOList;
+    }
+
+    // 4. 如果不存在，那么查询数据库，并将数据存入redis
+
+    /* ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓以下为原始实现↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ */
+
+    log.info("Redis缓存未命中，开始查询数据库: {}", key);
+    List<Dish> dishes = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+            .eq(Dish::getCategoryId, categoryId));
+    Category category = categoryMapper.selectById(categoryId);
+    List<DishVO> dishVOS = BeanUtil.copyToList(dishes, DishVO.class);
+
+    // 获取菜品所属的口味信息和类别名称
+    for (DishVO dishVO : dishVOS) {
+        List<DishFlavor> dishFlavors = dishFlavorMapper.selectList(new LambdaQueryWrapper<DishFlavor>()
+                .eq(DishFlavor::getDishId, dishVO.getId()));
+        dishVO.setCategoryName(category.getName());
+        dishVO.setFlavors(dishFlavors);
+    }
+
+    /* ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑以上为原始实现↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ */
+
+    // 5. 将数据存入redis，设置过期时间为1小时
+    redisTemplate.opsForValue().set(key, dishVOS, 1, TimeUnit.HOURS);
+    return dishVOS;
+}
+```
+
+#### 增删改的业务逻辑
+
+由于用户端查询到的只有启售中的菜品，因此只需要
+
+1. 在新增菜品时删除对应分类的缓存
+2. 在修改菜品时删除全部缓存
+3. 在修改菜品启售停售状态时删除全部缓存
+
+删除全部缓存时最好使用 `scan` 命令配合 `match` 参数来模糊匹配需要删除的key，然后使用 `del` 命令删除。具体示例逻辑见 `RedisCacheUtil.java` 中的 `cleanCacheSafe` 方法。
+
+```java
+
+
+## 购物车功能
 
 
 
