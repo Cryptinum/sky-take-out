@@ -23,11 +23,15 @@ import com.sky.service.SetmealService;
 import com.sky.vo.DishItemVO;
 import com.sky.vo.SetmealVO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.sky.constant.RedisConstant.SETMEAL_CATEGORY;
 
 /**
  *
@@ -115,6 +119,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
      */
     @Override
     @Transactional
+    @CacheEvict(cacheNames = SETMEAL_CATEGORY, key = "#setmealDTO.categoryId")
     public Integer saveSetmeal(SetmealDTO setmealDTO) {
         Setmeal setmeal = BeanUtil.copyProperties(setmealDTO, Setmeal.class);
         int success = setmealMapper.insert(setmeal);
@@ -139,6 +144,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
      * @return
      */
     @Override
+    @CacheEvict(cacheNames = SETMEAL_CATEGORY, allEntries = true)
     public Integer updateSetmealStatus(Integer status, Long id) {
         return setmealMapper.update(new LambdaUpdateWrapper<Setmeal>()
                 .eq(Setmeal::getId, id)
@@ -153,6 +159,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
      */
     @Override
     @Transactional
+    @CacheEvict(cacheNames = SETMEAL_CATEGORY, allEntries = true)
     public Integer editSetmeal(SetmealDTO setmealDTO) {
         Setmeal setmeal = BeanUtil.copyProperties(setmealDTO, Setmeal.class);
         Long setmealId = setmeal.getId();
@@ -177,6 +184,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
      */
     @Override
     @Transactional
+    @CacheEvict(cacheNames = SETMEAL_CATEGORY, allEntries = true)
     public Integer deleteSetmeal(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new DeletionNotAllowedException(MessageConstant.ID_LIST_IS_NULL);
@@ -194,12 +202,23 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         return i + j;
     }
 
+    /**
+     * 根据分类ID查询套餐信息
+     * @param categoryId
+     * @return
+     */
     @Override
+    @Cacheable(cacheNames = SETMEAL_CATEGORY, key = "#categoryId")
     public List<Setmeal> getSetmealByCategoryId(Long categoryId) {
         return setmealMapper.selectList(new LambdaQueryWrapper<Setmeal>()
                 .eq(Setmeal::getCategoryId, categoryId));
     }
 
+    /**
+     * 根据套餐ID查询套餐内菜品信息
+     * @param id
+     * @return
+     */
     @Override
     public List<DishItemVO> getDishesBySetmealId(Long id) {
         List<SetmealDish> setmealDishes = setmealDishMapper.selectList(new LambdaQueryWrapper<SetmealDish>()

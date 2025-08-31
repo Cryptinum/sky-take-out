@@ -1126,8 +1126,8 @@ Redis存储的时key-value对，key是字符串类型，value可以是多种数�
     <artifactId>spring-boot-starter-data-redis</artifactId>
 </dependency>
 <dependency>
-    <groupId>com.fasterxml.jackson.datatype</groupId>
-    <artifactId>jackson-datatype-jsr310</artifactId>
+<groupId>com.fasterxml.jackson.datatype</groupId>
+<artifactId>jackson-datatype-jsr310</artifactId>
 </dependency>
 ```
 
@@ -1330,6 +1330,21 @@ https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=J
 
 # Day 7
 
+## Spring Cache
+
+Spring Cache是Spring框架提供的一个缓存抽象层，简化了在Java应用中使用缓存的过程。它提供了一套统一的注解和接口，可以方便地将方法的结果缓存起来，从而提高应用的性能和响应速度。Spring
+Cache支持多种缓存实现，如EhCache、Caffeine、Redis等。
+
+### 核心注解
+
+| 注解               | 说明                                                  |
+|:-----------------|-----------------------------------------------------|
+| `@EnableCaching` | 启用Spring Cache功能，通常添加在启动类上                          |
+| `@Cacheable`     | 用于方法上，表示该方法的结果需要被缓存，如果缓存中存在则直接返回缓存结果，否则执行方法并将结果存入缓存 |
+| `@CachePut`      | 用于方法上，表示该方法的结果需要被缓存，但无论缓存中是否存在，都会执行方法并更新缓存          |
+| `@CacheEvict`    | 用于方法上，表示该方法执行后需要从缓存中移除指定的缓存项                        |
+| `@Caching`       | 用于方法上，允许在一个方法上同时使用多个缓存注解                            |
+
 ## 缓存菜品信息
 
 当很多用户同时浏览某个分类下的菜品时，如果每次都去数据库查询，势必会增加数据库的压力，影响系统的响应速度。为了解决这个问题，可以将热门分类下的菜品信息缓存到Redis中，当用户请求该分类的菜品时，后端服务先从Redis中获取，如果缓存命中则直接返回，否则再去数据库查询并将结果存入Redis。
@@ -1394,10 +1409,52 @@ public List<DishVO> getDishByCategoryUser(Long categoryId) {
 2. 在修改菜品时删除全部缓存
 3. 在修改菜品启售停售状态时删除全部缓存
 
-删除全部缓存时最好使用 `scan` 命令配合 `match` 参数来模糊匹配需要删除的key，然后使用 `del` 命令删除。具体示例逻辑见 `RedisCacheUtil.java` 中的 `cleanCacheSafe` 方法。
+删除全部缓存时最好使用 `scan` 命令配合 `match` 参数来模糊匹配需要删除的key，然后使用 `del` 命令删除。具体示例逻辑见
+`RedisCacheUtil.java` 中的 `cleanCacheSafe` 方法。
+
+### 通过Spring Cache缓存
+
+#### 启用缓存以及配置类
+
+通过Spring Cache的配置类可以配置 `RedisCacheManager` 作为缓存管理器，可以管理键值的序列化器，以及自定义键的前缀、过期时间等等。本项目将缓存配置整合进Redis配置类
+`RedisConfiguration.java` 中。
+
+首先在类上添加 `@EnableCaching` 注解启用缓存功能，然后创建并配置 `RedisCacheManager` 实例，最后将其作为 `CacheManager`
+类型的Bean返回。
 
 ```java
 
+@Bean
+public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
+    RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
+            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringRedisSerializer))
+            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(genericJackson2JsonRedisSerializer))
+            .computePrefixWith(cacheName -> "sky:cache:" + cacheName + ":")
+            .entryTtl(Duration.ofHours(1));
+
+    return RedisCacheManager.builder(redisConnectionFactory)
+            .cacheDefaults(config)
+            .build();
+}
+```
+
+#### 在业务类中使用缓存
+
+有了Spring Cache就不需要手动对 `redisTemplate` 进行操作了，只需要在需要缓存的方法上添加 `@Cacheable` 注解即可，Spring
+Cache会自动帮你处理缓存的读写逻辑。该注解有以下几个属性；
+
+| 属性             | 说明                                                         |
+|:---------------|:-----------------------------------------------------------|
+| `cacheNames`   | 指定缓存的名称，可以是一个或多个，作为缓存的命名空间，有一个别名 `value`                   |
+| `key`          | 指定缓存的键，可以使用SpEL表达式来动态生成键，例如 `#id` 表示方法参数中的 `id`            |
+| `keyGenerator` | 指定自定义的键生成器类的Bean名称，可以用来生成复杂的缓存键                            |
+| `condition`    | 指定缓存的条件表达式，只有满足条件时才会缓存结果，例如 `#id > 0` 表示只有 `id` 大于0时才缓存结果  |
+| `unless`       | 指定不缓存的条件表达式，满足条件时不会缓存结果，例如 `#result == null` 表示结果为null时不缓存 |
+| `cacheManager` | 指定使用的缓存管理器的Bean名称，默认使用配置类中定义的缓存管理器                         |
+
+对需要清除缓存的方法，需要在方法上添加 `@CacheEvict` 注解，属性与 `@Cacheable` 类似，另外还多了一个属性为 `allEntries` ，表示是否清除该缓存名称下的所有缓存项。
+
+值得注意的是，当调用有注解的方法时，会优先检查缓存，如果缓存命中则直接返回缓存结果，不会执行方法体内的代码。如果缓存未命中，则会执行方法体内的代码，并将结果存入缓存。因此，如果方法体内有副作用（如修改数据库），需要谨慎使用 `@Cacheable` 注解。
 
 ## 购物车功能
 
