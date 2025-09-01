@@ -1,6 +1,7 @@
 package com.sky.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sky.context.BaseContext;
 import com.sky.dto.ShoppingCartDTO;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  *
@@ -38,6 +40,18 @@ public class ShoppingCartServiceImpl
 
     @Autowired
     private SetmealMapper setmealMapper;
+
+    /**
+     * 查询购物车
+     *
+     * @return
+     */
+    @Override
+    public List<ShoppingCart> getShoppingCartItems() {
+        return shoppingCartMapper.selectList(new LambdaQueryWrapper<ShoppingCart>()
+                .eq(ShoppingCart::getUserId, BaseContext.getCurrentId())
+                .orderByAsc(ShoppingCart::getCreateTime));
+    }
 
     /**
      * 添加购物车
@@ -102,5 +116,44 @@ public class ShoppingCartServiceImpl
 
         // 插入失败，返回0，事务回滚
         return 0;
+    }
+
+    /**
+     * 删除购物车
+     *
+     * @param shoppingCartDTO
+     * @return
+     */
+    @Override
+    public Integer deleteShoppingCartItem(ShoppingCartDTO shoppingCartDTO) {
+        Long dishId = shoppingCartDTO.getDishId();
+        Long setmealId = shoppingCartDTO.getSetmealId();
+        String dishFlavor = shoppingCartDTO.getDishFlavor();
+
+        // 先查询到当前的购物车item
+        ShoppingCart shoppingCartItem = shoppingCartMapper.selectOne(new LambdaQueryWrapper<ShoppingCart>()
+                .eq(ShoppingCart::getUserId, BaseContext.getCurrentId())
+                .eq(dishId != null, ShoppingCart::getDishId, dishId)
+                .eq(setmealId != null, ShoppingCart::getSetmealId, setmealId)
+                .eq(dishFlavor != null, ShoppingCart::getDishFlavor, dishFlavor)
+        );
+
+        Integer number = shoppingCartItem.getNumber();
+        if (number > 1) {
+            shoppingCartItem.setNumber(number - 1);
+            shoppingCartMapper.updateById(shoppingCartItem);
+            return 1;
+        } else if (number == 1) {
+            shoppingCartMapper.deleteById(shoppingCartItem.getId());
+            return 1;
+        }
+
+        return 0;
+    }
+
+    @Override
+    public Integer clearShoppingCart() {
+        return shoppingCartMapper.delete(new LambdaUpdateWrapper<ShoppingCart>()
+                .eq(ShoppingCart::getUserId, BaseContext.getCurrentId()));
     }
 }
