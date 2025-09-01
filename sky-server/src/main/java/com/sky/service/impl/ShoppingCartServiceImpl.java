@@ -139,11 +139,15 @@ public class ShoppingCartServiceImpl
         );
 
         Integer number = shoppingCartItem.getNumber();
+
+        // 如果当前商品数量大于1，则数量-1
         if (number > 1) {
             shoppingCartItem.setNumber(number - 1);
             shoppingCartMapper.updateById(shoppingCartItem);
             return 1;
-        } else if (number == 1) {
+        }
+        // 如果等于1，则删除该商品
+        else if (number == 1) {
             shoppingCartMapper.deleteById(shoppingCartItem.getId());
             return 1;
         }

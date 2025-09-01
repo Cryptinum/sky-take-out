@@ -1460,7 +1460,10 @@ Cache会自动帮你处理缓存的读写逻辑。该注解有以下几个属性
 
 需要注意，本项目中的 `ShoppingCart` 实体类实际上是一个购物车项，表示购物车中的一件商品，而不是整个购物车。每个用户对应一个购物车，购物车中可以包含多件商品，每件商品对应一个购物车项。因此命名为 `ShoppingCartItem` 会更合适一些。
 
-### 添加商品至购物车
+### 添加商品至购物车 `POST /user/shoppingCart/add`
 
 先使用SQL进行存储和查询，查询时使用 `user_id` 和 `dish_id` 或 `setmeal_id` 进行联合查询，确保同一用户的同一商品只会有一条记录。如果存在，则将数量加1并更新记录，否则插入新记录，数量初始化为1。具体实现见 `ShoppingCartServiceImpl.java` 中的 `addShoppingCartItem` 方法。
+
+### 删除购物车商品 `POST /user/shoppingCart/sub`
+先查询购物车项，如果存在且数量大于1，则将数量减1并更新记录，如果数量等于1，则删除该记录。具体实现见 `ShoppingCartServiceImpl.java` 中的 `subShoppingCartItem` 方法。
 
