@@ -1556,4 +1556,6 @@ public OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exceptio
 查询历史订单的接口是使用分页查询的方式实现的，但是前端的接口只传来了 `page` 和 `pageSize` 两个参数，而没有使用 `OrdersPageQueryDTO` ，这是因为前端没有实现根据根据订单号、电话、时间等条件查询的功能，因此后端暂时也就没有必要实现这个功能，直接使用 `page` 和 `pageSize` 两个参数进行分页查询即可。具体实现见
 `OrderServiceImpl.java` 中的 `getHistoryOrders` 方法。
 
+在催单和取消订单接口中，需要注意订单状态，例如催单只有在订单状态为已确认和派送中时才允许催单，取消订单只有在订单状态为待付款和待接单时才允许取消。
+
 ## 商户端订单管理模块

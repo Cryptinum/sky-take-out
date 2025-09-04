@@ -31,7 +31,7 @@ public class OrderController {
 
     @GetMapping("/orderDetail/{id}")
     @Operation(summary = "查询订单详情", description = "用户端查询订单详情")
-    public Result<OrderVO> getOrderById(@PathVariable Long id){
+    public Result<OrderVO> getOrderById(@PathVariable Long id) {
         log.info("用户端查询订单详情: {}", id);
         OrderVO orderVO = orderService.getOrderById(id);
         return Result.success(orderVO);
@@ -39,10 +39,18 @@ public class OrderController {
 
     @GetMapping("/historyOrders")
     @Operation(summary = "查询历史订单", description = "用户端查询历史订单")
-    public Result<PageResult<OrderVO>> getHistoryOrders(int page, int pageSize, Integer status){
+    public Result<PageResult<OrderVO>> getHistoryOrders(int page, int pageSize, Integer status) {
         log.info("用户端查询历史订单");
         PageResult<OrderVO> historyOrders = orderService.getHistoryOrders(page, pageSize, status);
         return Result.success(historyOrders);
+    }
+
+    @GetMapping("/reminder/{id}")
+    @Operation(summary = "催单", description = "用户端催单")
+    public Result<Integer> reminderOrder(@PathVariable Long id) {
+        log.info("用户端催单: {}", id);
+        Integer success = orderService.reminderOrder(id);
+        return Result.success(success);
     }
 
     @PostMapping("/submit")
@@ -53,6 +61,14 @@ public class OrderController {
         return Result.success(orderSubmitVO);
     }
 
+    @PutMapping("/repetition/{id}")
+    @Operation(summary = "再来一单", description = "用户端再来一单")
+    public Result<Integer> repeatOrder(@PathVariable Long id) {
+        log.info("用户端再来一单: {}", id);
+        Integer success = orderService.repeatOrder(id);
+        return Result.success(success);
+    }
+
     @PutMapping("/payment")
     @Operation(summary = "订单支付", description = "用户端订单支付")
     public Result<OrderPaymentVO> payment(@RequestBody OrdersPaymentDTO ordersPaymentDTO) throws Exception {
@@ -60,5 +76,12 @@ public class OrderController {
         OrderPaymentVO orderPaymentVO = orderService.payment(ordersPaymentDTO);
         log.info("生成预支付交易单：{}", orderPaymentVO);
         return Result.success(orderPaymentVO);
+    }
+
+    @PutMapping("/cancel/{id}")
+    public Result<Integer> cancelOrder(@PathVariable Long id) {
+        log.info("用户端取消订单: {}", id);
+        Integer success = orderService.cancelOrder(id);
+        return Result.success(success);
     }
 }

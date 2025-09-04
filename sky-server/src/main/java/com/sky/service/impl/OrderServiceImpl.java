@@ -12,9 +12,11 @@ import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
+import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrdersMapper;
+import com.sky.mapper.ShoppingCartMapper;
 import com.sky.result.PageResult;
 import com.sky.service.AddressBookService;
 import com.sky.service.OrderService;
@@ -58,6 +60,7 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
 
     @Autowired
     private WeChatPayUtil weChatPayUtil;
+    private ShoppingCartMapper shoppingCartMapper;
 
     /**
      * 根据id查询订单详情
@@ -105,6 +108,31 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
 
         orderVO.setOrderDetailList(orderDetails);
         orderVO.setOrderDishes(nameString);
+    }
+
+    /**
+     * 催单
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public Integer reminderOrder(Long id) {
+        Orders order = ordersMapper.selectById(id);
+        if (order == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        // 只有在已确认或者派送中状态下才能催单
+        Integer status = order.getStatus();
+        if (!status.equals(Orders.CONFIRMED) || !status.equals(Orders.DELIVERY_IN_PROGRESS)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        String remark = order.getRemark();
+        remark = "用户已催单：" + (remark == null ? "" : remark);
+        order.setRemark(remark);
+        return ordersMapper.updateById(order);
     }
 
     /**
@@ -210,6 +238,29 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
     }
 
     /**
+     * 再来一单
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    @Transactional
+    public Integer repeatOrder(Long id) {
+        List<OrderDetail> orderDetails = orderDetailMapper
+                .selectList(new LambdaQueryWrapper<OrderDetail>()
+                        .eq(OrderDetail::getOrderId, id));
+        List<ShoppingCart> shoppingCarts = orderDetails.stream().map(orderDetail -> {
+            ShoppingCart shoppingCart = BeanUtil.copyProperties(orderDetail, ShoppingCart.class, "id", "create_time");
+            shoppingCart.setUserId(BaseContext.getCurrentId());
+            shoppingCart.setCreateTime(LocalDateTime.now());
+            return shoppingCart;
+        }).toList();
+
+        shoppingCartMapper.insert(shoppingCarts);
+        return 1;
+    }
+
+    /**
      * 支付成功，修改订单状态
      *
      * @param outTradeNo
@@ -229,5 +280,38 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
                 .build();
 
         ordersMapper.updateById(orders);
+    }
+
+    /**
+     * 取消订单
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public Integer cancelOrder(Long id) {
+        Orders order = ordersMapper.selectById(id);
+        if (order == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        // 订单状态 1待付款 2待接单 3已接单 4派送中 5已完成 6已取消 7退款
+        // 支付状态 0未支付 1已支付 2退款
+        // 如果不是待支付或者待接单，那么不能取消订单
+        Integer orderStatus = order.getStatus();
+        if (orderStatus > 2) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        // 如果是待接单，那么直接取消订单并退款
+        if (orderStatus.equals(Orders.TO_BE_CONFIRMED)) {
+            order.setPayStatus(Orders.REFUND);
+        }
+
+        // 如果是待支付，那么直接取消订单即可
+        order.setStatus(Orders.CANCELLED);
+        order.setCancelReason("用户取消订单");
+        order.setCancelTime(LocalDateTime.now());
+        return ordersMapper.updateById(order);
     }
 }

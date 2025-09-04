@@ -49,4 +49,25 @@ public interface OrderService extends IService<Orders> {
      * @return
      */
     PageResult<OrderVO> getHistoryOrders(int page, int pageSize, Integer status);
+
+    /**
+     * 取消订单
+     * @param id
+     * @return
+     */
+    Integer cancelOrder(Long id);
+
+    /**
+     * 再来一单
+     * @param id
+     * @return
+     */
+    Integer repeatOrder(Long id);
+
+    /**
+     * 催单
+     * @param id
+     * @return
+     */
+    Integer reminderOrder(Long id);
 }
