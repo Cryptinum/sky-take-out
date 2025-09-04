@@ -1518,3 +1518,35 @@ https://pay.weixin.qq.com/doc/v3/merchant/4012791911
 - 证书加密：商户系统需要使用微信支付提供的API证书来加密敏感数据，如退款请求中的银行卡号等，确保数据在传输过程中不被泄露。在微信商户平台上可以下载到两个文件，分别是 `apiclient_key.pem` 和 `wechatpay_XXXXXX.pem` ，分别是商户API证书和微信支付平台证书。
 - 回调验证：微信支付后台在回调商户系统支付结果通知时，会附带签名，商户系统需要验证签名的正确性，确保回调数据的真实性。
 
+### 具体实现
+
+实现类主要封装在了 `WeChatPayUtil.java` 中，本质就是根据微信支付的API规范封装HTTP请求，使用HttpClient包调用微信支付的接口服务。
+
+### 测试场景
+
+由于微信支付需要商户资质，且涉及到真实的资金交易，因此在本项目中直接使用微信支付进行真实交易场景下的测试。对项目提供的代码，需要改动以下两点：
+
+首先在提供的前端小程序代码中，找到 `pages/pay.index.js` 文件，搜索 `wx.requestPayment` 方法，注释掉该方法的调用，然后取消注释后面的 `uni.redirectTo` 方法，这样就可以跳过支付环节，直接模拟支付成功后的回调。
+
+然后在 `OrderServiceImpl.java` 中，修改 `payment` 方法如下：
+
+```java
+public OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exception {
+    // 当前登录用户id
+    Long userId = BaseContext.getCurrentId();
+    User user = userService.getById(userId);
+
+    JSONObject jsonObject = new JSONObject();
+    jsonObject.put("code", "ORDERPAID");
+    OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
+    vo.setPackageStr(jsonObject.getString("package"));
+
+    paySuccess(ordersPaymentDTO.getOrderNumber());
+
+    return vo;
+}
+```
+
+这样就可以直接模拟支付成功后的回调，完成订单状态的更新。
+
+

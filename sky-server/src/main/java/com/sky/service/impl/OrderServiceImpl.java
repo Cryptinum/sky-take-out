@@ -10,7 +10,6 @@ import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
-import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrdersMapper;
@@ -25,7 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -109,7 +107,6 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
                 .build();
     }
 
-
     /**
      * 订单支付
      *
@@ -121,22 +118,43 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         Long userId = BaseContext.getCurrentId();
         User user = userService.getById(userId);
 
-        //调用微信支付接口，生成预支付交易单
-        JSONObject jsonObject = weChatPayUtil.pay(
-                ordersPaymentDTO.getOrderNumber(), //商户订单号
-                new BigDecimal("0.01"), //支付金额，单位 元
-                "苍穹外卖订单", //商品描述
-                user.getOpenid() //微信用户的openid
-        );
-
-        if (jsonObject.getString("code") != null && jsonObject.getString("code").equals("ORDERPAID")) {
-            throw new OrderBusinessException("该订单已支付");
-        }
-
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("code", "ORDERPAID");
         OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
         vo.setPackageStr(jsonObject.getString("package"));
 
+        paySuccess(ordersPaymentDTO.getOrderNumber());
+
         return vo;
+
+
+//        //调用微信支付接口，生成预支付交易单
+//        JSONObject jsonObject = weChatPayUtil.pay(
+//                ordersPaymentDTO.getOrderNumber(), //商户订单号
+//                new BigDecimal("0.01"), //支付金额，单位 元
+//                "苍穹外卖订单", //商品描述
+//                user.getOpenid() //微信用户的openid
+//        );
+//
+//        if (jsonObject.getString("code") != null && jsonObject.getString("code").equals("ORDERPAID")) {
+//            throw new OrderBusinessException("该订单已支付");
+//        }
+//
+//        OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
+//        vo.setPackageStr(jsonObject.getString("package"));
+//
+//        return vo;
+
+//        // 直接调用支付成功的方法，模拟微信支付回调
+//        paySuccess(ordersPaymentDTO.getOrderNumber());
+//
+//        // 由于我们跳过了微信支付，无法生成真实的支付参数，
+//        // 但为了保证接口契约，仍然返回一个空的VO对象。
+//        // 前端可能需要做相应调整来处理这个模拟流程。
+//        return OrderPaymentVO
+//                .builder()
+//                .timeStamp(String.valueOf(System.currentTimeMillis()))
+//                .build();
     }
 
     /**
