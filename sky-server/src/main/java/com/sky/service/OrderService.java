@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.Orders;
+import com.sky.result.PageResult;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.vo.OrderVO;
 
 /**
  *
@@ -33,4 +35,18 @@ public interface OrderService extends IService<Orders> {
      * @param outTradeNo
      */
     void paySuccess(String outTradeNo);
+
+    /**
+     * 根据id查询订单详情
+     * @param id
+     * @return
+     */
+    OrderVO getOrderById(Long id);
+
+    /**
+     * 查询历史订单
+     *
+     * @return
+     */
+    PageResult<OrderVO> getHistoryOrders(int page, int pageSize, Integer status);
 }

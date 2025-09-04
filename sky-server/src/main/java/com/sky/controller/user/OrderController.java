@@ -2,10 +2,12 @@ package com.sky.controller.user;
 
 import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersSubmitDTO;
+import com.sky.result.PageResult;
 import com.sky.result.Result;
 import com.sky.service.OrderService;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.vo.OrderVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,22 @@ public class OrderController {
 
     @Autowired
     private OrderService orderService;
+
+    @GetMapping("/orderDetail/{id}")
+    @Operation(summary = "查询订单详情", description = "用户端查询订单详情")
+    public Result<OrderVO> getOrderById(@PathVariable Long id){
+        log.info("用户端查询订单详情: {}", id);
+        OrderVO orderVO = orderService.getOrderById(id);
+        return Result.success(orderVO);
+    }
+
+    @GetMapping("/historyOrders")
+    @Operation(summary = "查询历史订单", description = "用户端查询历史订单")
+    public Result<PageResult<OrderVO>> getHistoryOrders(int page, int pageSize, Integer status){
+        log.info("用户端查询历史订单");
+        PageResult<OrderVO> historyOrders = orderService.getHistoryOrders(page, pageSize, status);
+        return Result.success(historyOrders);
+    }
 
     @PostMapping("/submit")
     @Operation(summary = "提交订单", description = "用户端提交订单")

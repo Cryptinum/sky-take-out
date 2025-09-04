@@ -3,6 +3,8 @@ package com.sky.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.OrderItem;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
@@ -13,6 +15,7 @@ import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrdersMapper;
+import com.sky.result.PageResult;
 import com.sky.service.AddressBookService;
 import com.sky.service.OrderService;
 import com.sky.service.ShoppingCartService;
@@ -20,6 +23,7 @@ import com.sky.service.UserService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.vo.OrderVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +58,54 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
 
     @Autowired
     private WeChatPayUtil weChatPayUtil;
+
+    /**
+     * 根据id查询订单详情
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public OrderVO getOrderById(Long id) {
+        Orders orders = ordersMapper.selectById(id);
+        OrderVO orderVO = BeanUtil.copyProperties(orders, OrderVO.class);
+        setOrderVODetailAndName(orderVO);
+        return orderVO;
+    }
+
+    /**
+     * 查询历史订单
+     *
+     * @return
+     */
+    @Override
+    public PageResult<OrderVO> getHistoryOrders(int page, int pageSize, Integer status) {
+        Page<Orders> p = Page.of(page, pageSize);
+        Long userId = BaseContext.getCurrentId();
+        p.addOrder(OrderItem.desc("order_time"));
+        List<Orders> records = lambdaQuery()
+                .eq(userId != null, Orders::getUserId, userId)
+                .eq(status != null, Orders::getStatus, status)
+                .page(p).getRecords();
+        if (records == null || records.isEmpty()) {
+            return PageResult.empty(p);
+        }
+        List<OrderVO> orderVOS = BeanUtil.copyToList(records, OrderVO.class);
+        for (OrderVO orderVO : orderVOS) {
+            setOrderVODetailAndName(orderVO);
+        }
+        return new PageResult<>(p.getTotal(), p.getPages(), orderVOS);
+    }
+
+    private void setOrderVODetailAndName(OrderVO orderVO) {
+        List<OrderDetail> orderDetails = orderDetailMapper.selectList(new LambdaQueryWrapper<OrderDetail>()
+                .eq(OrderDetail::getOrderId, orderVO.getId()));
+        List<String> nameList = orderDetails.stream().map(OrderDetail::getName).toList();
+        String nameString = String.join(",", nameList);
+
+        orderVO.setOrderDetailList(orderDetails);
+        orderVO.setOrderDishes(nameString);
+    }
 
     /**
      * 提交订单
