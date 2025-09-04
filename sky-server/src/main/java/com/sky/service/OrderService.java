@@ -1,12 +1,11 @@
 package com.sky.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.sky.dto.OrdersPageQueryDTO;
-import com.sky.dto.OrdersPaymentDTO;
-import com.sky.dto.OrdersSubmitDTO;
+import com.sky.dto.*;
 import com.sky.entity.Orders;
 import com.sky.result.PageResult;
 import com.sky.vo.OrderPaymentVO;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
 
@@ -52,7 +51,7 @@ public interface OrderService extends IService<Orders> {
     PageResult<OrderVO> getHistoryOrders(int page, int pageSize, Integer status);
 
     /**
-     * 取消订单
+     * 用户端取消订单
      * @param id
      * @return
      */
@@ -77,5 +76,47 @@ public interface OrderService extends IService<Orders> {
      * @param ordersPageQueryDTO
      * @return
      */
-    PageResult<OrderVO> searchPageOrders(OrdersPageQueryDTO ordersPageQueryDTO);
+    PageResult<Orders> searchPageOrders(OrdersPageQueryDTO ordersPageQueryDTO);
+
+    /**
+     * 获取订单统计数据
+     * @return
+     */
+    OrderStatisticsVO getOrderStatistics();
+
+    /**
+     * 确认订单
+     *
+     * @param ordersConfirmDTO@return
+     */
+    Integer confirmOrder(OrdersConfirmDTO ordersConfirmDTO);
+
+    /**
+     * 拒绝订单
+     * @param ordersRejectionDTO
+     * @return
+     */
+    Integer rejectOrder(OrdersRejectionDTO ordersRejectionDTO) throws Exception;
+
+    /**
+     * 管理端取消订单
+     * @param ordersCancelDTO
+     * @return
+     * @throws Exception
+     */
+    Integer cancelOrder(OrdersCancelDTO ordersCancelDTO) throws Exception;
+
+    /**
+     * 订单派送
+     * @param id
+     * @return
+     */
+    Integer deliverOrder(Long id);
+
+    /**
+     * 完成订单
+     * @param id
+     * @return
+     */
+    Integer completeOrder(Long id);
 }
