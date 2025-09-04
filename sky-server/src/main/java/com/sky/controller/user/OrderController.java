@@ -61,7 +61,7 @@ public class OrderController {
         return Result.success(orderSubmitVO);
     }
 
-    @PutMapping("/repetition/{id}")
+    @PostMapping("/repetition/{id}")
     @Operation(summary = "再来一单", description = "用户端再来一单")
     public Result<Integer> repeatOrder(@PathVariable Long id) {
         log.info("用户端再来一单: {}", id);

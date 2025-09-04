@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
+import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.*;
@@ -50,6 +51,9 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
     private OrderDetailMapper orderDetailMapper;
 
     @Autowired
+    private ShoppingCartMapper shoppingCartMapper;
+
+    @Autowired
     private AddressBookService addressBookService;
 
     @Autowired
@@ -60,7 +64,6 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
 
     @Autowired
     private WeChatPayUtil weChatPayUtil;
-    private ShoppingCartMapper shoppingCartMapper;
 
     /**
      * 根据id查询订单详情
@@ -313,5 +316,41 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         order.setCancelReason("用户取消订单");
         order.setCancelTime(LocalDateTime.now());
         return ordersMapper.updateById(order);
+    }
+
+    //-----------------------------------------------------
+    //          ↑用户接口方法         ↓管理员接口方法
+    //-----------------------------------------------------
+
+    /**
+     * 条件分页查询订单
+     * @param ordersPageQueryDTO
+     * @return
+     */
+    @Override
+    public PageResult<OrderVO> searchPageOrders(OrdersPageQueryDTO ordersPageQueryDTO) {
+        int page = ordersPageQueryDTO.getPage();
+        int pageSize = ordersPageQueryDTO.getPageSize();
+        String number = ordersPageQueryDTO.getNumber();
+        String phone = ordersPageQueryDTO.getPhone();
+        Integer status = ordersPageQueryDTO.getStatus();
+        LocalDateTime beginTime = ordersPageQueryDTO.getBeginTime();
+        LocalDateTime endTime = ordersPageQueryDTO.getEndTime();
+
+        Page<Orders> p = Page.of(page, pageSize);
+        p.addOrder(OrderItem.desc("order_time"));
+        List<Orders> records = lambdaQuery()
+                .like(number != null, Orders::getNumber, number)
+                .like(phone != null, Orders::getPhone, phone)
+                .eq(status != null, Orders::getStatus, status)
+                .ge(beginTime != null, Orders::getOrderTime, beginTime)
+                .le(endTime != null, Orders::getOrderTime, endTime)
+                .page(p).getRecords();
+
+        List<OrderVO> orderVOS = BeanUtil.copyToList(records, OrderVO.class);
+        for (OrderVO orderVO : orderVOS) {
+            setOrderVODetailAndName(orderVO);
+        }
+        return new PageResult<>(p.getTotal(), p.getPages(), orderVOS);
     }
 }
