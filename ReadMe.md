@@ -1701,3 +1701,5 @@ public void sendToAllClient(String message) {
 
 ## 用户催单
 
+与来单提醒类似，用户催单时，需要在管理端浏览器页面语音播报并弹出提示框提醒接单。实现的方法类似。
+

@@ -136,13 +136,25 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
 
         // 只有在已确认或者派送中状态下才能催单
         Integer status = order.getStatus();
-        if (!status.equals(Orders.CONFIRMED) || !status.equals(Orders.DELIVERY_IN_PROGRESS)) {
+        if (!status.equals(Orders.TO_BE_CONFIRMED)) {
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
 
         String remark = order.getRemark();
         remark = "用户已催单：" + (remark == null ? "" : remark);
         order.setRemark(remark);
+
+        // 通过WebSocket向客户端浏览器推送消息
+        Map<String, Object> map = new HashMap<>();
+        map.put("type", 2);
+        map.put("orderId", id);
+        map.put("content", "订单号: " + order.getId());
+
+        String json = JSONObject.toJSONString(map);
+        webSocketServer.sendToAllClient(json);
+
+        log.info("用户端催单，订单号：{}", order.getId());
+
         return ordersMapper.updateById(order);
     }
 
