@@ -26,12 +26,14 @@ import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import com.sky.websocket.WebSocketServer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -67,6 +69,9 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
 
     @Autowired
     private WeChatPayUtil weChatPayUtil;
+
+    @Autowired
+    private WebSocketServer webSocketServer;
 
     /**
      * 根据id查询订单详情
@@ -277,15 +282,28 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         Orders ordersDB = ordersMapper.selectOne(new LambdaQueryWrapper<Orders>()
                 .eq(Orders::getNumber, outTradeNo));
 
+        Long id = ordersDB.getId();
+
         // 根据订单id更新订单的状态、支付方式、支付状态、结账时间
         Orders orders = Orders.builder()
-                .id(ordersDB.getId())
+                .id(id)
                 .status(Orders.TO_BE_CONFIRMED)
                 .payStatus(Orders.PAID)
                 .checkoutTime(LocalDateTime.now())
                 .build();
 
         ordersMapper.updateById(orders);
+
+        // 通过WebSocket向客户端浏览器推送消息
+        Map<String, Object> map = new HashMap<>();
+        map.put("type", 1);
+        map.put("orderId", id);
+        map.put("content", "订单号:" + outTradeNo);
+
+        String json = JSONObject.toJSONString(map);
+        webSocketServer.sendToAllClient(json);
+
+        log.info("用户端支付成功，订单号：{}", outTradeNo);
     }
 
     /**

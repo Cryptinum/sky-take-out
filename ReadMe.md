@@ -1618,6 +1618,64 @@ Cron表达式可以使用在线工具生成，例如：https://cron.qqe2.com/
 
 ## WebSocket
 
+WebSocket是一种网络协议，允许用户端和服务端在单个TCP连接上进行全双工通信。与传统的**无状态**的HTTP**请求-响应模式**
+不同，WebSocket建立的是**长连接**，且**服务器可以主动向客户端推送数据**，从而实现实时通信和低延迟的双向数据传输。
+
+WebSocket的请求路径使用 `ws://` 或 `wss://`
+（加密）协议开头，端口号通常为80或443（也就是HTTP和HTTPS的常用端口号）。WebSocket连接的建立需要经过HTTP协议的升级握手过程，客户端发送一个带有
+`Upgrade: websocket` 和 `Connection: Upgrade`
+头的HTTP请求，服务器如果支持WebSocket协议，则返回一个101状态码的响应，表示协议切换成功，之后双方就可以开始使用WebSocket协议进行通信。
+
+WebSocket提供了一系列回调方法的注解，用于处理连接建立、消息接收、连接关闭和错误处理等事件，与客户端HTTP中的JS回调方法是对称的，事实上建立了客户端和服务端的实时双向交互。
+
+### 配置步骤
+
+首先导入坐标
+
+```xml
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-websocket</artifactId>
+</dependency>
+```
+
+然后导入服务端组件 `WebSocketServer` ，用于和客户端通信（类似Controller，响应客户端针对特定路径发出的请求）。最后导入提供的代码，使用HTML页面作为客户端进行测试。
+
+### 针对并行连接的处理
+
+导入的代码中使用的是普通的 `HashMap<String, Session>` 来存储用户的WebSocket连接会话对象 `Session`
+，如果有多个用户同时连接，那么就会有并发操作的问题，可能会导致数据不一致或者异常。我们将其改为线程安全的集合类
+`ConcurrentHashMap<String, Session>` 来存储这些连接会话对象，它支持高并发的读写操作，能够确保在多线程环境下数据的一致性和完整性。
+
+另外，在 `sendToAllClient(String message)` 方法中，遍历所有连接会导致阻塞操作，影响性能。可以使用并行流 `parallelStream()`
+来提高效率。
+
+```java
+public void sendToAllClient(String message) {
+    sessionMap.values().parallelStream().forEach(session -> {
+        if (session.isOpen()) {
+            try {
+                session.getBasicRemote().sendText(message);
+            } catch (Exception e) {
+                log.error("WebSocket消息发送失败 for session ID: {}", session.getId(), e);
+            }
+        }
+    });
+}
+```
+
+### 在管理端服务器中的请求过程
+
+管理端服务器（浏览器）通过JavaScript的WebSocket API发起连接请求，连接的URL为 `ws://localhost/websocket/{sessionId}` ，其中
+`{sessionId}` 是一个动态参数，表示当前登录用户的唯一标识（如用户ID）。浏览器发起连接请求后，首先通过nginx的反向代理转发到8080端口，具体配置见配置文件的
+`location /ws/` 配置。然后，服务端的 `WebSocketServer` 类会接收到这个请求，并在 `@OnOpen`
+注解标记的方法中处理连接的建立，在本项目中的逻辑是使用Slf4j向控制台输出一个连接建立的日志，并将用户的 `sessionId` 和对应的
+`Session` 对象存储到 `sessionMap` 中。
+
+由于WebSocket协议的默认端口是80和443，如果本地配置的端口不是8080，那么就需要在nginx中配置端口转发，例如将80端口转发到8080端口。或者修改提供的前端代码的
+`app.d0aa4eb3.js` 文件，搜索到 `ws://localhost/ws/` 字符串，修改这个地址即可。
+
 ## 订单定时处理
 
 对本项目来说，主要有以下两个业务逻辑需要处理：
@@ -1628,6 +1686,18 @@ Cron表达式可以使用在线工具生成，例如：https://cron.qqe2.com/
 （这个业务逻辑在现实应用上很不合理，资源和流量消耗都比较大，对未支付订单的自动取消，可以考虑使用RabbitMQ的延时队列来实现，而不是每分钟都去扫描数据库）
 
 ## 来单提醒
+
+当用户下单并且支付成功后，需要第一时间通知外卖商家，对本项目来说，需求是在商家的管理端进行语音播报、并弹出提示框提醒接单。
+
+可以通过WebSocket建立一个管理端页面和服务端的长连接，当客户支付成功后，调用WebSocket的API实现服务端向客户端推送消息。客户端浏览器解析服务端推送的消息，判断是来单提醒还是用户催单，进行相应的消息提示和语音播报。
+
+整体的推送方向是用户客户端（小程序）->后台服务端（后端服务）->商家管理客户端（浏览器管理端页面）。
+
+在本项目中，约定服务端发送给客户端浏览器的数据格式为JSON，包括 `type`, `orderId`, `content` 三个字段，其中消息类型 `type`
+的值若为1则是来单提醒、2则是用户催单。
+
+实现这个功能只需要在 `OrderServiceImpl.java` 中的 `paySuccess` 方法中添加一行代码
+`webSocketServer.sendToAllClient(message);` 即可。由于无论是后端模拟支付或是实际支付，都会在支付成功后调用这个方法，因此管理端浏览器一定会收到消息通知。
 
 ## 用户催单
 
