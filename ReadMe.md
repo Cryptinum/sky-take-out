@@ -1716,3 +1716,6 @@ Charts）是一个基于JavaScript的开源可视化图表库，提供了丰富�
 
 黑马的实现写得不好，先构建日期列表然后分日期查询订单，这样会导致与SQL交互过于频繁。比较好的做法是直接查询某个时间段内的所有订单，然后在Java代码中使用流进行分组统计。具体实现见
 `ReportServiceImpl.java` 中的 `turnoverStatistics` 方法。
+
+用户统计同理，先统计起始日期之前的所有用户数，然后再查询某个时间段内的新增用户，最后在Java代码中使用流进行分组统计进行累加。具体实现见
+`ReportServiceImpl.java` 中的 `userStatistics` 方法。

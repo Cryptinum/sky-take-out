@@ -3,6 +3,7 @@ package com.sky.controller.admin;
 import com.sky.result.Result;
 import com.sky.service.ReportService;
 import com.sky.vo.TurnoverReportVO;
+import com.sky.vo.UserReportVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -39,5 +40,16 @@ public class ReportController {
         log.info("根据起始时间和结束时间查询营业额统计数据, begin: {}, end: {}", begin, end);
         TurnoverReportVO turnoverReportVO = reportService.turnoverStatistics(begin, end);
         return Result.success(turnoverReportVO);
+    }
+
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    @GetMapping("/userStatistics")
+    @Operation(summary = "用户统计", description = "根据起始时间和结束时间查询用户统计数据")
+    public Result<UserReportVO> userStatistics(
+            @RequestParam LocalDate begin,
+            @RequestParam LocalDate end) {
+        log.info("根据起始时间和结束时间查询用户统计数据, begin: {}, end: {}", begin, end);
+        UserReportVO userReportVO = reportService.userStatistics(begin, end);
+        return Result.success(userReportVO);
     }
 }

@@ -2,9 +2,12 @@ package com.sky.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.sky.entity.Orders;
+import com.sky.entity.User;
 import com.sky.mapper.OrdersMapper;
+import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
 import com.sky.vo.TurnoverReportVO;
+import com.sky.vo.UserReportVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,6 +32,9 @@ public class ReportServiceImpl implements ReportService {
 
     @Autowired
     private OrdersMapper ordersMapper;
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     public TurnoverReportVO turnoverStatistics(LocalDate begin, LocalDate end) {
@@ -78,6 +85,68 @@ public class ReportServiceImpl implements ReportService {
         return TurnoverReportVO.builder()
                 .dateList(dateStrList)
                 .turnoverList(turnoverStrList)
+                .build();
+    }
+
+    @Override
+    public UserReportVO userStatistics(LocalDate begin, LocalDate end) {
+        // 思路：先统计begin之前的，然后在后端逐天累加得到数据
+
+        // 1. 生成从 begin 到 end 的完整连续日期列表
+        List<LocalDate> dateList = Stream.iterate(begin, date -> date.plusDays(1))
+                .limit(begin.until(end).getDays() + 1)
+                .toList();
+
+        // 2. 查询并计算每日新增用户数
+        LocalDateTime beginTime = begin.atStartOfDay();
+        LocalDateTime endTime = end.atTime(LocalTime.MAX);
+
+        List<User> userList = userMapper.selectList(new LambdaQueryWrapper<User>()
+                .ge(User::getCreateTime, beginTime)
+                .le(User::getCreateTime, endTime)
+        );
+
+        Map<LocalDate, Long> newUserMap = userList.stream()
+                .collect(Collectors.groupingBy(
+                        user -> user.getCreateTime().toLocalDate(),
+                        Collectors.counting()
+                ));
+
+        // 3. 计算每日总用户数
+        // 3.1 查询起始日期前的总用户数
+        Long totalUserBeforeBegin = userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .lt(User::getCreateTime, beginTime)
+        );
+
+        List<Long> totalUserList = new ArrayList<>();
+        Long runningTotal = totalUserBeforeBegin;
+
+        for (LocalDate date : dateList) {
+            // 获取当天的增量
+            Long newUserCount = newUserMap.getOrDefault(date, 0L);
+            // 累加到运行总数上
+            runningTotal += newUserCount;
+            totalUserList.add(runningTotal);
+        }
+
+        // 4. 整理并拼接成VO所需的字符串格式
+        String dateStrList = dateList.stream()
+                .map(LocalDate::toString)
+                .collect(Collectors.joining(","));
+
+        String newUserStrList = dateList.stream()
+                .map(date -> newUserMap.getOrDefault(date, 0L).toString())
+                .collect(Collectors.joining(","));
+
+        String totalUserStrList = totalUserList.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+        // 5. 封装结果并返回
+        return UserReportVO.builder()
+                .dateList(dateStrList)
+                .newUserList(newUserStrList)
+                .totalUserList(totalUserStrList)
                 .build();
     }
 }
