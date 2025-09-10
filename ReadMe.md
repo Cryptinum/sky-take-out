@@ -1703,3 +1703,16 @@ public void sendToAllClient(String message) {
 
 与来单提醒类似，用户催单时，需要在管理端浏览器页面语音播报并弹出提示框提醒接单。实现的方法类似。
 
+# Day 11
+
+## Apache ECharts
+
+Apache ECharts（Enterprise
+Charts）是一个基于JavaScript的开源可视化图表库，提供了丰富的图表类型和强大的交互功能，适用于各种数据可视化场景。ECharts支持多种图表类型，如折线图、柱状图、饼图、散点图、地图等，并且可以通过配置项进行高度定制化。ECharts具有良好的性能和扩展性，支持大数据量的渲染和动态数据更新，适合用于构建复杂的可视化应用。
+
+官方网站：https://echarts.apache.org/zh/index.html
+
+## 数据统计接口
+
+黑马的实现写得不好，先构建日期列表然后分日期查询订单，这样会导致与SQL交互过于频繁。比较好的做法是直接查询某个时间段内的所有订单，然后在Java代码中使用流进行分组统计。具体实现见
+`ReportServiceImpl.java` 中的 `turnoverStatistics` 方法。
