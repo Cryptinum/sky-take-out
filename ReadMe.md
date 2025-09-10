@@ -930,7 +930,7 @@ docker run \
   redis:8.2.1 \
   redis-server /etc/redis/redis.conf
 ```
-
+docket 
 | 参数	              | 作用             |
 |:-----------------|----------------|
 | -d	              | 后台运行           |

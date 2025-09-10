@@ -1,16 +1,20 @@
 package com.sky.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.sky.entity.OrderDetail;
 import com.sky.entity.Orders;
 import com.sky.entity.User;
+import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrdersMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
 import com.sky.vo.OrderReportVO;
+import com.sky.vo.SalesTop10ReportVO;
 import com.sky.vo.TurnoverReportVO;
 import com.sky.vo.UserReportVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,23 +37,19 @@ public class ReportServiceImpl implements ReportService {
 
     @Autowired
     private OrdersMapper ordersMapper;
-
+    @Autowired
+    private OrderDetailMapper orderDetailMapper;
     @Autowired
     private UserMapper userMapper;
 
     @Override
     public TurnoverReportVO turnoverStatistics(LocalDate begin, LocalDate end) {
-        // --- 步骤 1: 查询并计算出实际有营业额的日期和金额 ---
+        List<LocalDate> dateList = getDateList(begin, end);
+        String dateStrList = getDateStrList(dateList);
 
-        LocalDateTime beginTime = begin.atStartOfDay();
-        LocalDateTime endTime = end.atTime(LocalTime.MAX);
+        List<Orders> ordersList = getCompletedOrdersByDateRange(begin, end);
 
-        List<Orders> ordersList = ordersMapper.selectList(new LambdaQueryWrapper<Orders>()
-                .ge(Orders::getOrderTime, beginTime)
-                .le(Orders::getOrderTime, endTime)
-                .eq(Orders::getStatus, Orders.COMPLETED)
-        );
-
+        // 转换为以日期为键，营业额为值的Map
         Map<LocalDate, BigDecimal> turnoverMap = ordersList.stream().collect(
                 Collectors.groupingBy(
                         order -> order.getOrderTime().toLocalDate(),
@@ -60,29 +60,11 @@ public class ReportServiceImpl implements ReportService {
                 )
         );
 
-        // --- 步骤 2: 生成从 begin 到 end 的完整连续日期列表 ---
-
-        // 使用 Stream.iterate 生成日期流，从 begin 开始，每天加1，直到 end 日期
-        List<LocalDate> dateList = Stream
-                .iterate(begin, date -> date.plusDays(1))
-                .limit(begin.until(end).getDays() + 1)
-                .toList();
-
-        // --- 步骤 3: 遍历完整日期列表，从 Map 中获取营业额，如果不存在则用 0 填充 ---
-
-        // 拼接日期字符串，例如 "2025-09-08,2025-09-09,2025-09-10"
-        String dateStrList = dateList.stream()
-                .map(LocalDate::toString)
-                .collect(Collectors.joining(","));
-
-        // 拼接每日营业额字符串，例如 "50.00,0,98.00"
+        // 如果某日期缺少订单则赋0
         String turnoverStrList = dateList.stream()
-                // 使用 Map.getOrDefault 方法，如果 map 中没有这个 date key，就返回默认值 BigDecimal.ZERO
-                .map(date -> turnoverMap.getOrDefault(date, BigDecimal.ZERO))
-                .map(BigDecimal::toString)
+                .map(date -> turnoverMap.getOrDefault(date, BigDecimal.ZERO).toString())
                 .collect(Collectors.joining(","));
 
-        // --- 步骤 4: 封装 TurnoverReportVO 返回结果 ---
         return TurnoverReportVO.builder()
                 .dateList(dateStrList)
                 .turnoverList(turnoverStrList)
@@ -91,59 +73,41 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public UserReportVO userStatistics(LocalDate begin, LocalDate end) {
-        // 思路：先统计begin之前的，然后在后端逐天累加得到数据
-
-        // 1. 生成从 begin 到 end 的完整连续日期列表
-        List<LocalDate> dateList = Stream.iterate(begin, date -> date.plusDays(1))
-                .limit(begin.until(end).getDays() + 1)
-                .toList();
-
-        // 2. 查询并计算每日新增用户数
+        List<LocalDate> dateList = getDateList(begin, end);
+        String dateStrList = getDateStrList(dateList);
         LocalDateTime beginTime = begin.atStartOfDay();
         LocalDateTime endTime = end.atTime(LocalTime.MAX);
 
-        List<User> userList = userMapper.selectList(new LambdaQueryWrapper<User>()
-                .ge(User::getCreateTime, beginTime)
-                .le(User::getCreateTime, endTime)
-        );
-
-        Map<LocalDate, Long> newUserMap = userList.stream()
+        // 查询指定日期范围内每天的新用户数
+        Map<LocalDate, Long> newUserMap = userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .ge(User::getCreateTime, beginTime)
+                        .le(User::getCreateTime, endTime))
+                .stream()
                 .collect(Collectors.groupingBy(
                         user -> user.getCreateTime().toLocalDate(),
                         Collectors.counting()
                 ));
 
-        // 3. 计算每日总用户数
-        // 3.1 查询起始日期前的总用户数
+        // 计算从开始日期前一天为止的总用户数
         Long totalUserBeforeBegin = userMapper.selectCount(new LambdaQueryWrapper<User>()
-                .lt(User::getCreateTime, beginTime)
-        );
+                .lt(User::getCreateTime, beginTime));
 
+        // 计算每天的累计用户数，依次累加到totalUserBeforeBegin上
         List<Long> totalUserList = new ArrayList<>();
         Long runningTotal = totalUserBeforeBegin;
-
         for (LocalDate date : dateList) {
-            // 获取当天的增量
-            Long newUserCount = newUserMap.getOrDefault(date, 0L);
-            // 累加到运行总数上
-            runningTotal += newUserCount;
+            runningTotal += newUserMap.getOrDefault(date, 0L);
             totalUserList.add(runningTotal);
         }
 
-        // 4. 整理并拼接成VO所需的字符串格式
-        String dateStrList = dateList.stream()
-                .map(LocalDate::toString)
-                .collect(Collectors.joining(","));
-
+        // 格式转换
         String newUserStrList = dateList.stream()
                 .map(date -> newUserMap.getOrDefault(date, 0L).toString())
                 .collect(Collectors.joining(","));
-
         String totalUserStrList = totalUserList.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
 
-        // 5. 封装结果并返回
         return UserReportVO.builder()
                 .dateList(dateStrList)
                 .newUserList(newUserStrList)
@@ -153,64 +117,126 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public OrderReportVO ordersStatistics(LocalDate begin, LocalDate end) {
-        // 1. 生成从 begin 到 end 的完整连续日期列表
-        List<LocalDate> dateList = Stream.iterate(begin, date -> date.plusDays(1))
-                .limit(begin.until(end).getDays() + 1)
-                .toList();
-
-        // 2. 查询指定日期范围内的所有订单
+        List<LocalDate> dateList = getDateList(begin, end);
+        String dateStrList = getDateStrList(dateList);
         LocalDateTime beginTime = begin.atStartOfDay();
         LocalDateTime endTime = end.atTime(LocalTime.MAX);
 
         List<Orders> ordersList = ordersMapper.selectList(new LambdaQueryWrapper<Orders>()
                 .ge(Orders::getOrderTime, beginTime)
-                .le(Orders::getOrderTime, endTime)
-        );
+                .le(Orders::getOrderTime, endTime));
 
-        // 3. 计算每日总订单数
+        // 分别统计每天的订单总数和有效订单数（已完成订单）
         Map<LocalDate, Long> dailyOrderCountMap = ordersList.stream()
-                .collect(Collectors.groupingBy(
-                        order -> order.getOrderTime().toLocalDate(),
-                        Collectors.counting()
-                ));
+                .collect(Collectors.groupingBy(order -> order.getOrderTime().toLocalDate(), Collectors.counting()));
 
-        // 4. 计算每日有效订单数
         Map<LocalDate, Long> dailyValidOrderCountMap = ordersList.stream()
-                .filter(order -> Orders.COMPLETED.equals(order.getStatus())) // 筛选出已完成订单
-                .collect(Collectors.groupingBy(
-                        order -> order.getOrderTime().toLocalDate(),
-                        Collectors.counting()
-                ));
+                .filter(order -> Orders.COMPLETED.equals(order.getStatus()))
+                .collect(Collectors.groupingBy(order -> order.getOrderTime().toLocalDate(), Collectors.counting()));
 
-        // 5. 计算区间内的总订单数
         Integer totalOrderCount = ordersList.size();
-
-        // 6. 计算区间内的总有效订单数
-        Integer validOrderCount = dailyValidOrderCountMap.values().stream()
-                .mapToInt(Long::intValue)
-                .sum();
-
-        // 7. 计算订单完成率
+        Integer validOrderCount = dailyValidOrderCountMap.values().stream().mapToInt(Long::intValue).sum();
         Double orderCompletionRate = (totalOrderCount == 0) ? 0.0 : validOrderCount.doubleValue() / totalOrderCount;
 
-        // 8. 拼接每日订单数字符串
+        // 格式转换
         String orderCountStrList = dateList.stream()
                 .map(date -> dailyOrderCountMap.getOrDefault(date, 0L).toString())
                 .collect(Collectors.joining(","));
-
-        // 9. 拼接每日有效订单数字符串
         String validOrderCountStrList = dateList.stream()
                 .map(date -> dailyValidOrderCountMap.getOrDefault(date, 0L).toString())
                 .collect(Collectors.joining(","));
 
-        // 10. 封装结果并返回
         return OrderReportVO.builder()
-                .dateList(dateList.stream().map(LocalDate::toString).collect(Collectors.joining(",")))
+                .dateList(dateStrList)
                 .orderCountList(orderCountStrList)
                 .validOrderCountList(validOrderCountStrList)
                 .totalOrderCount(totalOrderCount)
                 .validOrderCount(validOrderCount)
                 .orderCompletionRate(orderCompletionRate)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public SalesTop10ReportVO top10Statistics(LocalDate begin, LocalDate end) {
+        List<Orders> completedOrders = getCompletedOrdersByDateRange(begin, end);
+        List<Long> completedOrderIds = completedOrders.stream().map(Orders::getId).collect(Collectors.toList());
+
+        if (completedOrderIds.isEmpty()) {
+            return SalesTop10ReportVO.builder().nameList("").numberList("").build();
+        }
+
+        // 查询所有已完成订单的订单明细
+        List<OrderDetail> orderDetailList = orderDetailMapper.selectList(new LambdaQueryWrapper<OrderDetail>()
+                .in(OrderDetail::getOrderId, completedOrderIds));
+
+        Map<String, Integer> salesMap = orderDetailList.stream()
+                .collect(Collectors.groupingBy(
+                        OrderDetail::getName,
+                        Collectors.summingInt(OrderDetail::getNumber)
+                ));
+
+        List<Map.Entry<String, Integer>> sortedSalesList = salesMap.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(10)
+                .toList();
+
+        // 格式转换
+        String nameList = sortedSalesList.stream()
+                .map(Map.Entry::getKey)
+                .collect(Collectors.joining(","));
+        String numberList = sortedSalesList.stream()
+                .map(entry -> entry.getValue().toString())
+                .collect(Collectors.joining(","));
+
+        return SalesTop10ReportVO.builder()
+                .nameList(nameList)
+                .numberList(numberList)
+                .build();
+    }
+
+    // ================== Private Helper Methods ==================
+
+    /**
+     * 根据开始和结束日期，生成一个连续的日期列表
+     *
+     * @param begin 开始日期
+     * @param end   结束日期
+     * @return List<LocalDate>
+     */
+    private List<LocalDate> getDateList(LocalDate begin, LocalDate end) {
+        return Stream
+                .iterate(begin, date -> date.plusDays(1))
+                .limit(begin.until(end).getDays() + 1)
+                .toList();
+    }
+
+    /**
+     * 将日期列表转换为逗号分隔的字符串
+     *
+     * @param dateList 日期列表
+     * @return 逗号分隔的日期字符串
+     */
+    private String getDateStrList(List<LocalDate> dateList) {
+        return dateList.stream()
+                .map(LocalDate::toString)
+                .collect(Collectors.joining(","));
+    }
+
+    /**
+     * 根据日期范围查询已完成的订单列表
+     *
+     * @param begin 开始日期
+     * @param end   结束日期
+     * @return List<Orders>
+     */
+    private List<Orders> getCompletedOrdersByDateRange(LocalDate begin, LocalDate end) {
+        LocalDateTime beginTime = begin.atStartOfDay();
+        LocalDateTime endTime = end.atTime(LocalTime.MAX);
+        return ordersMapper.selectList(new LambdaQueryWrapper<Orders>()
+                .ge(Orders::getOrderTime, beginTime)
+                .le(Orders::getOrderTime, endTime)
+                .eq(Orders::getStatus, Orders.COMPLETED)
+        );
     }
 }
