@@ -8,6 +8,7 @@ import com.sky.vo.TurnoverReportVO;
 import com.sky.vo.UserReportVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -75,5 +76,12 @@ public class ReportController {
         log.info("根据起始时间和结束时间查询销售额前十统计数据, begin: {}, end: {}", begin, end);
         SalesTop10ReportVO salesTop10ReportVO = reportService.top10Statistics(begin, end);
         return Result.success(salesTop10ReportVO);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出数据报表", description = "导出数据报表")
+    public void exportBusinessData(HttpServletResponse response){
+        log.info("导出数据报表");
+        reportService.exportBusinessData(response);
     }
 }

@@ -52,11 +52,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
      * 优化点: 将3次数据库查询减少为2次，并在内存中通过流处理计算指标。
      */
     @Override
-    public BusinessDataVO getBusinessData() {
-        // 0. 获取当天的开始和结束时间
-        LocalDateTime begin = LocalDateTime.now().with(LocalTime.MIN);
-        LocalDateTime end = LocalDateTime.now().with(LocalTime.MAX);
-
+    public BusinessDataVO getBusinessData(LocalDateTime begin, LocalDateTime end) {
         // 1. 一次性查询出时间范围内的所有订单
         List<Orders> ordersList = ordersMapper.selectList(new LambdaQueryWrapper<Orders>()
                 .ge(Orders::getOrderTime, begin)

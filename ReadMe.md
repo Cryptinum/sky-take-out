@@ -1,3 +1,126 @@
+<!-- TOC -->
+
+* [项目说明](#项目说明)
+* [Day 1](#day-1)
+    * [前端环境](#前端环境)
+    * [Git推送](#git推送)
+    * [导入依赖修改](#导入依赖修改)
+    * [查看接口](#查看接口)
+        * [Spring Boot 3整合Knife4j 4](#spring-boot-3整合knife4j-4)
+    * [完善登录功能](#完善登录功能)
+    * [常见问题的解决方案](#常见问题的解决方案)
+        * [端口占用问题](#端口占用问题)
+        * [导入依赖和配置修改](#导入依赖和配置修改)
+        * [Spring MVC配置静态资源映射](#spring-mvc配置静态资源映射)
+        * [JWT的使用方法变化](#jwt的使用方法变化)
+        * [Logback/Log4j乱码问题](#logbacklog4j乱码问题)
+        * [关闭各种横幅logo并启用MyBatis日志](#关闭各种横幅logo并启用mybatis日志)
+* [Day 2](#day-2)
+    * [使用前的注意](#使用前的注意)
+    * [新增员工接口 `POST /admin/employee`](#新增员工接口-post-adminemployee)
+        * [实现](#实现)
+        * [创建者和更新者的处理](#创建者和更新者的处理)
+    * [分页查询 `GET /admin/employee/page`](#分页查询-get-adminemployeepage)
+        * [实现](#实现-1)
+        * [原理](#原理)
+        * [时间转换](#时间转换)
+    * [修改员工信息 `GET /admin/employee/{id}`
+      `PUT /admin/employee`](#修改员工信息-get-adminemployeeid-put-adminemployee)
+        * [实现](#实现-2)
+        * [技术细节](#技术细节)
+    * [分类管理模块的各项功能](#分类管理模块的各项功能)
+        * [实现](#实现-3)
+        * [注意事项](#注意事项)
+* [Day 3](#day-3)
+    * [代码重构 - 公共字段填充](#代码重构---公共字段填充)
+        * [使用Mybatis Plus实现](#使用mybatis-plus实现)
+        * [使用Spring Boot实现](#使用spring-boot实现)
+    * [图片上传接口 `POST /admin/common/upload`](#图片上传接口-post-admincommonupload)
+        * [实现](#实现-4)
+    * [菜品管理模块](#菜品管理模块)
+        * [新增菜品接口 `POST /admin/dish`](#新增菜品接口-post-admindish)
+        * [分页查询菜品接口 `GET /admin/dish/page`](#分页查询菜品接口-get-admindishpage)
+        * [删除菜品接口 `DELETE /admin/dish`](#删除菜品接口-delete-admindish)
+        * [实现](#实现-5)
+* [Day 4](#day-4)
+    * [套餐管理模块](#套餐管理模块)
+* [Day 5](#day-5)
+    * [Redis入门](#redis入门)
+        * [简介](#简介)
+        * [安装](#安装)
+            * [检查Docker源](#检查docker源)
+            * [拉取镜像](#拉取镜像)
+            * [添加配置](#添加配置)
+            * [启动容器](#启动容器)
+            * [验证与调试](#验证与调试)
+            * [Windows内测试客户端](#windows内测试客户端)
+        * [常用数据类型](#常用数据类型)
+            * [字符串 string](#字符串-string)
+            * [散列 hash](#散列-hash)
+            * [列表 list](#列表-list)
+            * [集合 set](#集合-set)
+            * [有序集合 sorted set (zset)](#有序集合-sorted-set-zset)
+    * [在Java中操作Redis](#在java中操作redis)
+        * [准备工作](#准备工作)
+        * [基本操作](#基本操作)
+    * [更改营业状态 `PUT /admin/shop/{status}`](#更改营业状态-put-adminshopstatus)
+* [Day 6](#day-6)
+    * [HttpClient包](#httpclient包)
+        * [示例 - 发送一个GET请求](#示例---发送一个get请求)
+        * [示例 - 发送一个POST请求](#示例---发送一个post请求)
+    * [微信小程序开发入门](#微信小程序开发入门)
+        * [微信小程序的目录结构](#微信小程序的目录结构)
+    * [微信登录功能](#微信登录功能)
+        * [登录流程](#登录流程)
+        * [手动获得标识](#手动获得标识)
+        * [代码实现](#代码实现)
+    * [商品浏览功能](#商品浏览功能)
+* [Day 7](#day-7)
+    * [Spring Cache](#spring-cache)
+        * [核心注解](#核心注解)
+    * [缓存菜品信息](#缓存菜品信息)
+        * [Redis缓存逻辑设计](#redis缓存逻辑设计)
+            * [查询的业务逻辑](#查询的业务逻辑)
+            * [增删改的业务逻辑](#增删改的业务逻辑)
+        * [通过Spring Cache缓存](#通过spring-cache缓存)
+            * [启用缓存以及配置类](#启用缓存以及配置类)
+            * [在业务类中使用缓存](#在业务类中使用缓存)
+    * [购物车功能](#购物车功能)
+        * [添加商品至购物车 `POST /user/shoppingCart/add`](#添加商品至购物车-post-usershoppingcartadd)
+        * [删除购物车商品 `POST /user/shoppingCart/sub`](#删除购物车商品-post-usershoppingcartsub)
+* [Day 8](#day-8)
+    * [地址簿模块](#地址簿模块)
+    * [用户下单模块](#用户下单模块)
+    * [用户支付模块](#用户支付模块)
+        * [数据安全保障](#数据安全保障)
+        * [具体实现](#具体实现)
+        * [测试场景](#测试场景)
+* [Day 9](#day-9)
+    * [用户端历史订单模块](#用户端历史订单模块)
+    * [商户端订单管理模块](#商户端订单管理模块)
+* [Day 10](#day-10)
+    * [Spring Task](#spring-task)
+        * [优势](#优势)
+        * [劣势与解决方案](#劣势与解决方案)
+        * [业务场景](#业务场景)
+        * [配置步骤](#配置步骤)
+    * [WebSocket](#websocket)
+        * [配置步骤](#配置步骤-1)
+        * [针对并行连接的处理](#针对并行连接的处理)
+        * [在管理端服务器中的请求过程](#在管理端服务器中的请求过程)
+    * [订单定时处理](#订单定时处理)
+    * [来单提醒](#来单提醒)
+    * [用户催单](#用户催单)
+* [Day 11](#day-11)
+    * [Apache ECharts](#apache-echarts)
+    * [数据统计接口](#数据统计接口)
+* [Day 12](#day-12)
+    * [Apache POI](#apache-poi)
+    * [工作台模块](#工作台模块)
+    * [导出Excel数据](#导出excel数据)
+
+<!-- TOC -->
+
 # 项目说明
 
 本项目基于苍穹外卖项目，将各种依赖项升级至较新的版本，包括使用Spring Boot 3, MyBatis Plus 3.5, OpenAPI 3等。
@@ -930,14 +1053,15 @@ docker run \
   redis:8.2.1 \
   redis-server /etc/redis/redis.conf
 ```
-docket 
-| 参数	              | 作用             |
+
+docket
+| 参数 | 作用 |
 |:-----------------|----------------|
-| -d	              | 后台运行           |
-| --privileged	    | 赋予容器特权模式       |
-| -p	              | 端口映射           |
-| -v               | 	卷挂载（配置/数据/日志） |
-| --restart=always | 	自动重启策略        |
+| -d | 后台运行 |
+| --privileged | 赋予容器特权模式 |
+| -p | 端口映射 |
+| -v | 卷挂载（配置/数据/日志） |
+| --restart=always | 自动重启策略 |
 
 #### 验证与调试
 
@@ -1724,8 +1848,18 @@ Charts）是一个基于JavaScript的开源可视化图表库，提供了丰富�
 
 ## Apache POI
 
+Apache POI是一个用于处理Microsoft
+Office格式文件的库，包括Excel、Word和PowerPoint等。它提供了一套丰富的API，可以方便地创建、读取、修改和写入这些文件格式，支持多种版本的Office文件，如HSSF（Excel
+97-2003）、XSSF（Excel 2007及以上）和SXSSF（大数据量Excel处理）等。
+
+Apache POI针对不同的行业有多种应用场景，例如银行网银系统生成对账单、财务系统生成报表、ERP系统导出数据等。它支持复杂的Excel功能，如公式计算、图表生成、数据透视表等，适用于各种数据处理和分析需求。
+
+官方网站：https://poi.apache.org/
+
 ## 工作台模块
 
 工作台需要展示的数据很多，而设计思想在于用一个中等的粒度对各项数据进行分类汇总。对于每个分类下的数据，可以使用单独的接口进行查询，并封装进不同的VO，然后在前端进行展示，增强结构性和可维护性。
 
 ## 导出Excel数据
+
+最终效果为返回一个文件，在管理端浏览器页面点击按钮即可下载Excel文件。将返回的数据流作为一个 `HttpServletResponse` 响应体，可以自动返回给浏览器进行下载。

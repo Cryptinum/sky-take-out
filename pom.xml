@@ -46,7 +46,7 @@
         <aspectj>1.9.4</aspectj>
         <jjwt>0.12.7</jjwt>
         <jaxb-api>2.3.1</jaxb-api>
-        <poi>3.16</poi>
+        <poi>5.4.1</poi>
         <springdoc>2.8.9</springdoc>
         <spring>3.5.4</spring>
         <hutool>5.8.38</hutool>

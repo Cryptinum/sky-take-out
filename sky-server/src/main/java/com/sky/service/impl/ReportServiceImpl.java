@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import cn.hutool.poi.excel.ExcelWriter;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.sky.entity.OrderDetail;
 import com.sky.entity.Orders;
@@ -8,15 +9,23 @@ import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrdersMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
-import com.sky.vo.OrderReportVO;
-import com.sky.vo.SalesTop10ReportVO;
-import com.sky.vo.TurnoverReportVO;
-import com.sky.vo.UserReportVO;
+import com.sky.service.WorkspaceService;
+import com.sky.vo.*;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -33,14 +42,20 @@ import java.util.stream.Stream;
  */
 
 @Service
+@Slf4j
 public class ReportServiceImpl implements ReportService {
 
     @Autowired
     private OrdersMapper ordersMapper;
+
     @Autowired
     private OrderDetailMapper orderDetailMapper;
+
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private WorkspaceService workspaceService;
 
     @Override
     public TurnoverReportVO turnoverStatistics(LocalDate begin, LocalDate end) {
@@ -193,6 +208,157 @@ public class ReportServiceImpl implements ReportService {
                 .nameList(nameList)
                 .numberList(numberList)
                 .build();
+    }
+
+    @Override
+    public void exportBusinessData(HttpServletResponse response) {
+        try {
+            // 这里我们选择调用 Hutool 的实现，因为它更简洁
+            exportWithHutool(response);
+            // 如果想使用原生POI，可以调用 exportWithPOI(response);
+        } catch (IOException e) {
+            log.error("导出运营数据报表失败", e);
+        }
+    }
+
+    /**
+     * 使用 Hutool 实现导出报表
+     * @param response
+     * @throws IOException
+     */
+    private void exportWithHutool(HttpServletResponse response) throws IOException {
+        // 1. 获取近30天的业务数据
+        LocalDate beginDate = LocalDate.now().minusDays(30);
+        LocalDate endDate = LocalDate.now().minusDays(1);
+        BusinessDataVO businessData = workspaceService.getBusinessData(beginDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
+        TurnoverReportVO turnoverData = turnoverStatistics(beginDate, endDate);
+        OrderReportVO orderData = ordersStatistics(beginDate, endDate);
+        UserReportVO userData = userStatistics(beginDate, endDate);
+
+        // 2. 加载模板文件
+        InputStream templateStream = this.getClass().getClassLoader().getResourceAsStream("template/运营数据报表模板.xlsx");
+        XSSFWorkbook workbook = new XSSFWorkbook(templateStream);
+        ExcelWriter writer = new ExcelWriter(workbook.getSheet("Sheet1"));
+        // 明确要操作的sheet，Hutool默认为"Sheet1"或第一个
+        writer.setSheet(0);
+
+        // 3. 填充概览数据
+        writer.writeCellValue("B2", "时间：" + beginDate + " 至 " + endDate);
+        writer.writeCellValue("C4", businessData.getTurnover());
+        writer.writeCellValue("E4", businessData.getOrderCompletionRate());
+        writer.writeCellValue("G4", businessData.getNewUsers());
+        writer.writeCellValue("C5", businessData.getValidOrderCount());
+        writer.writeCellValue("E5", businessData.getUnitPrice());
+
+        // 4. 数据预处理：将字符串分割为数组
+        List<LocalDate> dateList = getDateList(beginDate, endDate);
+        String[] turnoverList = StringUtils.split(turnoverData.getTurnoverList(), ',');
+        String[] validOrderList = StringUtils.split(orderData.getValidOrderCountList(), ',');
+        String[] orderCountList = StringUtils.split(orderData.getOrderCountList(), ',');
+        String[] newUserList = StringUtils.split(userData.getNewUserList(), ',');
+
+        // 5. 在内存中计算并填充明细数据
+        for (int i = 0; i < 30; i++) {
+            LocalDate date = dateList.get(i);
+            BigDecimal turnover = new BigDecimal(turnoverList[i]);
+            int totalOrderCount = Integer.parseInt(orderCountList[i]);
+            int validOrderCount = Integer.parseInt(validOrderList[i]);
+            int newUsers = Integer.parseInt(newUserList[i]);
+
+            // 在后端内存中计算每日订单完成率和平均客单价
+            double completionRate = (totalOrderCount == 0) ? 0.0 : (double) validOrderCount / totalOrderCount;
+            double unitPrice = (validOrderCount == 0) ? 0.0 : turnover.doubleValue() / validOrderCount;
+
+            // Hutool的坐标也是从0开始的
+            writer.writeCellValue(1, 7 + i, date.toString()); // B列，第8行开始
+            writer.writeCellValue(2, 7 + i, turnover.doubleValue()); // C列
+            writer.writeCellValue(3, 7 + i, validOrderCount); // D列
+            writer.writeCellValue(4, 7 + i, completionRate); // E列
+            writer.writeCellValue(5, 7 + i, unitPrice); // F列
+            writer.writeCellValue(6, 7 + i, newUsers); // G列
+        }
+
+        // 6. 设置响应头并写出文件
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String fileName = "运营数据报表-" + beginDate + "-" + endDate + ".xlsx";
+        response.setHeader("Content-Disposition", "attachment; filename=" + new String(fileName.getBytes(StandardCharsets.UTF_8), "ISO-8859-1"));
+
+        ServletOutputStream out = response.getOutputStream();
+        writer.flush(out, true);
+
+        // 7. 关闭资源
+        out.close();
+        writer.close();
+    }
+
+    /**
+     * 使用 Apache POI 实现导出报表
+     * @param response
+     * @throws IOException
+     */
+    private void exportWithPOI(HttpServletResponse response) throws IOException {
+        // 1. 获取近30天的业务数据
+        LocalDate beginDate = LocalDate.now().minusDays(30);
+        LocalDate endDate = LocalDate.now().minusDays(1);
+        BusinessDataVO businessData = workspaceService.getBusinessData(beginDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
+        TurnoverReportVO turnoverData = turnoverStatistics(beginDate, endDate);
+        OrderReportVO orderData = ordersStatistics(beginDate, endDate);
+        UserReportVO userData = userStatistics(beginDate, endDate);
+
+        // 2. 加载模板文件到内存
+        // 从类路径下加载资源
+        InputStream templateStream = this.getClass().getClassLoader().getResourceAsStream("template/运营数据报表模板.xlsx");
+        XSSFWorkbook workbook = new XSSFWorkbook(templateStream);
+        XSSFSheet sheet = workbook.getSheet("Sheet1");
+
+        // 3. 填充概览数据
+        sheet.getRow(1).getCell(1).setCellValue("时间：" + beginDate + " 至 " + endDate);
+        sheet.getRow(3).getCell(2).setCellValue(businessData.getTurnover());
+        sheet.getRow(3).getCell(4).setCellValue(businessData.getOrderCompletionRate());
+        sheet.getRow(3).getCell(6).setCellValue(businessData.getNewUsers());
+        sheet.getRow(4).getCell(2).setCellValue(businessData.getValidOrderCount());
+        sheet.getRow(4).getCell(4).setCellValue(businessData.getUnitPrice());
+
+        // 4. 数据预处理
+        List<LocalDate> dateList = getDateList(beginDate, endDate);
+        String[] turnoverList = StringUtils.split(turnoverData.getTurnoverList(), ',');
+        String[] validOrderList = StringUtils.split(orderData.getValidOrderCountList(), ',');
+        String[] orderCountList = StringUtils.split(orderData.getOrderCountList(), ',');
+        String[] newUserList = StringUtils.split(userData.getNewUserList(), ',');
+
+        // 5. 在内存中计算并填充明细数据
+        for (int i = 0; i < 30; i++) {
+            LocalDate date = dateList.get(i);
+            XSSFRow row = sheet.getRow(7 + i);
+
+            BigDecimal turnover = new BigDecimal(turnoverList[i]);
+            int totalOrderCount = Integer.parseInt(orderCountList[i]);
+            int validOrderCount = Integer.parseInt(validOrderList[i]);
+            int newUsers = Integer.parseInt(newUserList[i]);
+
+            double completionRate = (totalOrderCount == 0) ? 0.0 : (double) validOrderCount / totalOrderCount;
+            double unitPrice = (validOrderCount == 0) ? 0.0 : turnover.doubleValue() / validOrderCount;
+
+            row.getCell(1).setCellValue(date.toString());
+            row.getCell(2).setCellValue(turnover.doubleValue());
+            row.getCell(3).setCellValue(validOrderCount);
+            row.getCell(4).setCellValue(completionRate);
+            row.getCell(5).setCellValue(unitPrice);
+            row.getCell(6).setCellValue(newUsers);
+        }
+
+        // 6. 设置响应头并写出文件
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String fileName = "运营数据报表-" + beginDate + "-" + endDate + ".xlsx";
+        response.setHeader("Content-Disposition", "attachment; filename=" + new String(fileName.getBytes("UTF-8"), "ISO-8859-1"));
+
+        ServletOutputStream out = response.getOutputStream();
+        workbook.write(out);
+
+        // 7. 关闭资源
+        out.close();
+        workbook.close();
+        templateStream.close();
     }
 
     // ================== Private Helper Methods ==================
