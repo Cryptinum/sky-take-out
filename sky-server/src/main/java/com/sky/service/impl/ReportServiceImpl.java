@@ -6,6 +6,7 @@ import com.sky.entity.User;
 import com.sky.mapper.OrdersMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
+import com.sky.vo.OrderReportVO;
 import com.sky.vo.TurnoverReportVO;
 import com.sky.vo.UserReportVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -147,6 +148,69 @@ public class ReportServiceImpl implements ReportService {
                 .dateList(dateStrList)
                 .newUserList(newUserStrList)
                 .totalUserList(totalUserStrList)
+                .build();
+    }
+
+    @Override
+    public OrderReportVO ordersStatistics(LocalDate begin, LocalDate end) {
+        // 1. 生成从 begin 到 end 的完整连续日期列表
+        List<LocalDate> dateList = Stream.iterate(begin, date -> date.plusDays(1))
+                .limit(begin.until(end).getDays() + 1)
+                .toList();
+
+        // 2. 查询指定日期范围内的所有订单
+        LocalDateTime beginTime = begin.atStartOfDay();
+        LocalDateTime endTime = end.atTime(LocalTime.MAX);
+
+        List<Orders> ordersList = ordersMapper.selectList(new LambdaQueryWrapper<Orders>()
+                .ge(Orders::getOrderTime, beginTime)
+                .le(Orders::getOrderTime, endTime)
+        );
+
+        // 3. 计算每日总订单数
+        Map<LocalDate, Long> dailyOrderCountMap = ordersList.stream()
+                .collect(Collectors.groupingBy(
+                        order -> order.getOrderTime().toLocalDate(),
+                        Collectors.counting()
+                ));
+
+        // 4. 计算每日有效订单数
+        Map<LocalDate, Long> dailyValidOrderCountMap = ordersList.stream()
+                .filter(order -> Orders.COMPLETED.equals(order.getStatus())) // 筛选出已完成订单
+                .collect(Collectors.groupingBy(
+                        order -> order.getOrderTime().toLocalDate(),
+                        Collectors.counting()
+                ));
+
+        // 5. 计算区间内的总订单数
+        Integer totalOrderCount = ordersList.size();
+
+        // 6. 计算区间内的总有效订单数
+        Integer validOrderCount = dailyValidOrderCountMap.values().stream()
+                .mapToInt(Long::intValue)
+                .sum();
+
+        // 7. 计算订单完成率
+        Double orderCompletionRate = (totalOrderCount == 0) ? 0.0 : validOrderCount.doubleValue() / totalOrderCount;
+
+        // 8. 拼接每日订单数字符串
+        String orderCountStrList = dateList.stream()
+                .map(date -> dailyOrderCountMap.getOrDefault(date, 0L).toString())
+                .collect(Collectors.joining(","));
+
+        // 9. 拼接每日有效订单数字符串
+        String validOrderCountStrList = dateList.stream()
+                .map(date -> dailyValidOrderCountMap.getOrDefault(date, 0L).toString())
+                .collect(Collectors.joining(","));
+
+        // 10. 封装结果并返回
+        return OrderReportVO.builder()
+                .dateList(dateList.stream().map(LocalDate::toString).collect(Collectors.joining(",")))
+                .orderCountList(orderCountStrList)
+                .validOrderCountList(validOrderCountStrList)
+                .totalOrderCount(totalOrderCount)
+                .validOrderCount(validOrderCount)
+                .orderCompletionRate(orderCompletionRate)
                 .build();
     }
 }
